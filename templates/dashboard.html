@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>MoneyPrinter Dashboard</title>
   <link rel="icon" href="data:,">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
   <style>
     :root {
       color-scheme: light;
@@ -15,7 +17,7 @@
       --surface-dark: #0f1c29;
       --surface-dark-2: #152636;
       --ink: #14202b;
-      --muted: #687280;
+      --muted: #536070;
       --line: rgba(20, 32, 43, 0.1);
       --line-strong: rgba(20, 32, 43, 0.16);
       --accent: #0d8b80;
@@ -36,6 +38,24 @@
 
     * {
       box-sizing: border-box;
+    }
+
+    .skip-link {
+      position: absolute;
+      top: -100%;
+      left: 16px;
+      z-index: 9999;
+      padding: 10px 18px;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 700;
+      border-radius: 0 0 12px 12px;
+      text-decoration: none;
+      transition: top 120ms ease;
+    }
+
+    .skip-link:focus {
+      top: 0;
     }
 
     html {
@@ -123,7 +143,7 @@
       font-size: 11px;
       letter-spacing: 0.16em;
       text-transform: uppercase;
-      color: rgba(237, 243, 246, 0.54);
+      color: rgba(237, 243, 246, 0.72);
     }
 
     .sidebar-nav {
@@ -154,6 +174,16 @@
     .button-secondary:hover,
     .button-ghost:hover {
       transform: translateY(-1px);
+    }
+
+    .button:focus-visible,
+    .button-secondary:focus-visible,
+    .button-ghost:focus-visible,
+    .inline-button:focus-visible,
+    .preset-card button:focus-visible,
+    .sidebar-nav a:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
     }
 
     .service-stack,
@@ -280,7 +310,7 @@
       font-size: 12px;
       letter-spacing: 0.18em;
       text-transform: uppercase;
-      color: rgba(20, 32, 43, 0.5);
+      color: rgba(20, 32, 43, 0.65);
     }
 
     .masthead h1 {
@@ -707,8 +737,8 @@
     }
 
     .chip.muted {
-      background: rgba(20, 32, 43, 0.05);
-      color: rgba(20, 32, 43, 0.62);
+      background: rgba(20, 32, 43, 0.07);
+      color: rgba(20, 32, 43, 0.72);
     }
 
     .meta-grid {
@@ -730,7 +760,7 @@
       font-size: 11px;
       letter-spacing: 0.14em;
       text-transform: uppercase;
-      color: rgba(20, 32, 43, 0.48);
+      color: rgba(20, 32, 43, 0.62);
     }
 
     .meta-card strong {
@@ -1276,9 +1306,310 @@
         width: 100%;
       }
     }
+
+    /* ── VIEWER MODAL — enhanced spring easing ─── */
+    .viewer-panel {
+      transform: translateY(16px) scale(0.97);
+      opacity: 0;
+      transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1), opacity 240ms ease-out;
+    }
+    .viewer-modal.is-open .viewer-panel {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+
+    /* ── TOAST SYSTEM ─────────────────────────── */
+    .toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 9000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+    }
+    .toast {
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 14px 18px;
+      border-radius: 16px;
+      font-size: 14px;
+      font-weight: 600;
+      max-width: 380px;
+      min-width: 260px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.16);
+      animation: toast-in 260ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      backdrop-filter: blur(12px);
+    }
+    .toast.success { background: rgba(21,107,68,0.94); color: #ecfdf5; border: 1px solid rgba(255,255,255,0.14); }
+    .toast.error   { background: rgba(167,70,42,0.94);  color: #fff7f5; border: 1px solid rgba(255,255,255,0.14); }
+    .toast.info    { background: rgba(13,111,103,0.94); color: #f0fffe; border: 1px solid rgba(255,255,255,0.14); }
+    .toast-close {
+      flex-shrink: 0;
+      background: transparent;
+      border: 0;
+      color: inherit;
+      cursor: pointer;
+      font-size: 18px;
+      opacity: 0.65;
+      line-height: 1;
+      padding: 0 2px;
+    }
+    .toast-close:hover { opacity: 1; }
+    @keyframes toast-in {
+      from { opacity: 0; transform: translateX(28px) scale(0.95); }
+      to   { opacity: 1; transform: translateX(0)    scale(1);    }
+    }
+    .toast.exit {
+      animation: toast-out 200ms ease-in forwards;
+    }
+    @keyframes toast-out {
+      from { opacity: 1; transform: translateX(0)    scale(1);    }
+      to   { opacity: 0; transform: translateX(28px) scale(0.95); }
+    }
+
+    /* ── SKELETON LOADING ─────────────────────── */
+    .skeleton-card {
+      padding: 16px 18px;
+      border-radius: 20px;
+      background: linear-gradient(180deg, rgba(255,253,248,0.94), rgba(255,249,241,0.84));
+      border: 1px solid rgba(255,255,255,0.58);
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 12px;
+    }
+    .skeleton-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .skeleton-col { display: grid; gap: 6px; flex: 1; }
+    .skeleton-line {
+      height: 14px;
+      border-radius: 8px;
+      background: linear-gradient(90deg,
+        rgba(20,32,43,0.06) 25%,
+        rgba(20,32,43,0.13) 50%,
+        rgba(20,32,43,0.06) 75%);
+      background-size: 200% 100%;
+      animation: skeleton-shimmer 1.5s ease-in-out infinite;
+    }
+    .skeleton-line.w-65  { width: 65%; }
+    .skeleton-line.w-42  { width: 42%; }
+    .skeleton-line.w-28  { width: 28%; height: 10px; }
+    .skeleton-line.w-100 { width: 100%; }
+    .skeleton-line.pill  { width: 70px; height: 26px; border-radius: 999px; flex-shrink: 0; }
+    .skeleton-line.bar   { width: 100%; height: 10px; border-radius: 999px; }
+    @keyframes skeleton-shimmer {
+      0%   { background-position:  200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* ── KPI ROW ──────────────────────────────── */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .kpi-card {
+      padding: 20px 22px;
+      border-radius: var(--radius-xl);
+      background: linear-gradient(180deg, rgba(255,253,248,0.94), rgba(255,249,241,0.84));
+      border: 1px solid rgba(255,255,255,0.58);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      display: grid;
+      gap: 4px;
+      transition: transform 180ms ease, box-shadow 180ms ease;
+    }
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 28px 72px rgba(28,38,49,0.17);
+    }
+    .kpi-value {
+      font-size: 38px;
+      font-weight: 800;
+      letter-spacing: -0.06em;
+      line-height: 1;
+      color: var(--ink);
+    }
+    .kpi-value.accent  { color: var(--accent); }
+    .kpi-value.success { color: var(--success); }
+    .kpi-value.warning { color: var(--warning); }
+    .kpi-label {
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 700;
+      margin-top: 2px;
+    }
+    .kpi-sub {
+      font-size: 13px;
+      color: var(--muted);
+      margin: 0;
+      line-height: 1.45;
+    }
+    @media (max-width: 900px) {
+      .kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    /* ── DRAFT FILTER BAR ─────────────────────── */
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .filter-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      background: rgba(20,32,43,0.05);
+      color: var(--muted);
+      border: 1px solid rgba(20,32,43,0.08);
+      transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+    }
+    .filter-chip:hover { background: rgba(20,32,43,0.09); color: var(--ink); }
+    .filter-chip.is-active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .filter-chip .fc-count {
+      background: rgba(0,0,0,0.15);
+      border-radius: 999px;
+      padding: 1px 6px;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+    .filter-chip:not(.is-active) .fc-count { background: rgba(20,32,43,0.08); color: var(--ink); }
+    .draft-row[hidden], .compact-draft-row[hidden] { display: none; }
+
+    /* ── DARK MODE ────────────────────────────── */
+    html[data-theme="dark"] {
+      color-scheme: dark;
+      --bg: #0d1520;
+      --bg-soft: #111d2c;
+      --surface: rgba(18,28,44,0.92);
+      --surface-strong: #162233;
+      --ink: #dce8f0;
+      --muted: #7a90a4;
+      --line: rgba(255,255,255,0.08);
+      --line-strong: rgba(255,255,255,0.13);
+      --shadow: 0 24px 60px rgba(0,0,0,0.40);
+    }
+    html[data-theme="dark"] body {
+      background:
+        radial-gradient(circle at top right, rgba(13,139,128,0.09), transparent 22rem),
+        radial-gradient(circle at bottom left, rgba(216,154,55,0.07), transparent 26rem),
+        var(--bg);
+    }
+    html[data-theme="dark"] .panel,
+    html[data-theme="dark"] .profile-card,
+    html[data-theme="dark"] .account-card,
+    html[data-theme="dark"] .job-card,
+    html[data-theme="dark"] .kpi-card,
+    html[data-theme="dark"] .metric-card {
+      background: linear-gradient(180deg, rgba(22,34,52,0.97), rgba(18,28,44,0.93));
+      border-color: rgba(255,255,255,0.07);
+    }
+    html[data-theme="dark"] .masthead {
+      background: linear-gradient(145deg, rgba(22,34,52,0.97), rgba(18,28,44,0.86));
+      border-color: rgba(255,255,255,0.07);
+    }
+    html[data-theme="dark"] input,
+    html[data-theme="dark"] textarea,
+    html[data-theme="dark"] select {
+      background: rgba(255,255,255,0.05);
+      border-color: rgba(255,255,255,0.1);
+      color: var(--ink);
+      color-scheme: dark;
+    }
+    html[data-theme="dark"] input:focus,
+    html[data-theme="dark"] textarea:focus,
+    html[data-theme="dark"] select:focus { background: rgba(255,255,255,0.08); }
+    html[data-theme="dark"] .draft-row,
+    html[data-theme="dark"] .compact-draft-row,
+    html[data-theme="dark"] .meta-card,
+    html[data-theme="dark"] .checkbox-row {
+      background: rgba(255,255,255,0.04);
+      border-color: rgba(255,255,255,0.07);
+    }
+    html[data-theme="dark"] .empty-state {
+      background: rgba(255,255,255,0.03);
+      border-color: rgba(255,255,255,0.1);
+    }
+    html[data-theme="dark"] details.legacy-group,
+    html[data-theme="dark"] details.settings-group {
+      background: rgba(255,255,255,0.04);
+      border-color: rgba(255,255,255,0.07);
+    }
+    html[data-theme="dark"] .skeleton-card {
+      background: linear-gradient(180deg, rgba(22,34,52,0.97), rgba(18,28,44,0.93));
+      border-color: rgba(255,255,255,0.07);
+    }
+    html[data-theme="dark"] .skeleton-line {
+      background: linear-gradient(90deg,
+        rgba(255,255,255,0.04) 25%,
+        rgba(255,255,255,0.10) 50%,
+        rgba(255,255,255,0.04) 75%);
+      background-size: 200% 100%;
+    }
+    html[data-theme="dark"] .spotlight-media { background: rgba(255,255,255,0.05); }
+    html[data-theme="dark"] .filter-chip {
+      background: rgba(255,255,255,0.05);
+      border-color: rgba(255,255,255,0.08);
+    }
+    html[data-theme="dark"] .filter-chip:hover { background: rgba(255,255,255,0.09); color: var(--ink); }
+    html[data-theme="dark"] .button-secondary,
+    html[data-theme="dark"] .inline-button {
+      background: rgba(255,255,255,0.07);
+      color: var(--ink);
+      border-color: rgba(255,255,255,0.1);
+    }
+    html[data-theme="dark"] .button-ghost { border-color: rgba(255,255,255,0.12); color: var(--ink); }
+
+    /* ── THEME TOGGLE ─────────────────────────── */
+    .theme-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 10px 14px;
+      cursor: pointer;
+      color: rgba(237,243,246,0.78);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      transition: background 140ms ease;
+      text-align: left;
+    }
+    .theme-toggle:hover { background: rgba(255,255,255,0.09); color: #edf3f6; }
+    .theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .theme-toggle svg { flex-shrink: 0; }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+      }
+    }
   </style>
 </head>
 <body>
+  <a class="skip-link" href="#compose">메인 콘텐츠로 건너뛰기</a>
   <div class="layout">
     <aside class="sidebar">
       <section class="brand-block">
@@ -1319,6 +1650,14 @@
       </section>
 
       <section class="sidebar-section">
+        <p class="sidebar-label">Display</p>
+        <button type="button" class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
+          <svg id="themeIcon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          <span id="themeLabel">Dark mode</span>
+        </button>
+      </section>
+
+      <section class="sidebar-section">
         <p class="sidebar-label">Working Set</p>
         <div class="stack-brief">
           <p><strong>LLM</strong> · {{ state.llm.provider }}{% if state.llm.active_model %} · {{ state.llm.active_model }}{% endif %}</p>
@@ -1342,12 +1681,39 @@
         </div>
       </section>
 
-      {% if notice %}
-        <div class="feedback notice">{{ notice }}</div>
+      {% if notice or error %}
+        <script type="application/json" id="flashData">{"notice":{{ notice|tojson if notice else 'null' }},"error":{{ error|tojson if error else 'null' }}}</script>
       {% endif %}
-      {% if error %}
-        <div class="feedback error">{{ error }}</div>
-      {% endif %}
+
+      {% set published_count = state.cardnews_drafts | selectattr('status', 'equalto', 'published') | list | length %}
+      {% set approved_count  = state.cardnews_drafts | selectattr('status', 'equalto', 'approved')  | list | length %}
+      {% set total_drafts    = state.cardnews_drafts | length %}
+      {% set pending_count   = total_drafts - published_count - approved_count %}
+
+      <section class="section">
+        <div class="kpi-row">
+          <div class="kpi-card">
+            <span class="kpi-value">{{ total_drafts }}</span>
+            <span class="kpi-label">Total Drafts</span>
+            <p class="kpi-sub">{{ state.cardnews_profiles|length }} profile{% if state.cardnews_profiles|length != 1 %}s{% endif %} active</p>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-value success">{{ published_count }}</span>
+            <span class="kpi-label">Published</span>
+            <p class="kpi-sub">Shipped to channels</p>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-value accent">{{ approved_count }}</span>
+            <span class="kpi-label">Approved</span>
+            <p class="kpi-sub">Ready to publish</p>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-value {% if pending_count > 0 %}warning{% endif %}">{{ pending_count }}</span>
+            <span class="kpi-label">Pending Review</span>
+            <p class="kpi-sub">Awaiting approval</p>
+          </div>
+        </div>
+      </section>
 
       <section id="queue" class="section">
         <div class="section-head">
@@ -1376,24 +1742,24 @@
               <form method="post" action="/cardnews/generate" id="generateForm">
                 <div class="field-grid single">
                   <div class="field-group">
-                    <label class="field-label">Profile</label>
-                    <select name="profile_id">
+                    <label class="field-label" for="gen-profile-id">Profile</label>
+                    <select name="profile_id" id="gen-profile-id">
                       {% for profile in state.cardnews_profiles %}
                         <option value="{{ profile.id }}">{{ profile.nickname }} · {{ profile.niche }}</option>
                       {% endfor %}
                     </select>
                   </div>
                   <div class="field-group">
-                    <label class="field-label">Format</label>
-                    <select name="format_mode">
+                    <label class="field-label" for="gen-format-mode">Format</label>
+                    <select name="format_mode" id="gen-format-mode">
                       <option value="carousel" {% if state.cardnews_defaults.format == 'carousel' %}selected{% endif %}>carousel</option>
                       <option value="poster" {% if state.cardnews_defaults.format == 'poster' %}selected{% endif %}>poster</option>
                     </select>
                     <p class="field-hint">`poster` renders a one-page infographic with illustrated item cards.</p>
                   </div>
                   <div class="field-group">
-                    <label class="field-label">Topic Override</label>
-                    <textarea name="topic_override" placeholder="Leave blank to let the planner pick a topic."></textarea>
+                    <label class="field-label" for="gen-topic-override">Topic Override</label>
+                    <textarea name="topic_override" id="gen-topic-override" placeholder="Leave blank to let the planner pick a topic."></textarea>
                   </div>
                 </div>
                 <div class="form-actions">
@@ -1409,20 +1775,20 @@
               <form method="post" action="/accounts/cardnews/save">
                 <div class="field-grid">
                   <div class="field-group field-span-2">
-                    <label class="field-label">Nickname</label>
-                    <input name="nickname" placeholder="Finance KR">
+                    <label class="field-label" for="pb-nickname">Nickname</label>
+                    <input name="nickname" id="pb-nickname" placeholder="Finance KR">
                   </div>
                   <div class="field-group field-span-2">
-                    <label class="field-label">Niche</label>
-                    <input name="niche" placeholder="budgeting for young professionals">
+                    <label class="field-label" for="pb-niche">Niche</label>
+                    <input name="niche" id="pb-niche" placeholder="budgeting for young professionals">
                   </div>
                   <div class="field-group">
-                    <label class="field-label">Language</label>
-                    <input name="language" value="Korean">
+                    <label class="field-label" for="pb-language">Language</label>
+                    <input name="language" id="pb-language" value="Korean">
                   </div>
                   <div class="field-group">
-                    <label class="field-label">Channels</label>
-                    <input name="channels" value="{{ state.cardnews_defaults.default_channels|join(', ') }}">
+                    <label class="field-label" for="pb-channels">Channels</label>
+                    <input name="channels" id="pb-channels" value="{{ state.cardnews_defaults.default_channels|join(', ') }}">
                   </div>
                 </div>
                 <div class="form-actions">
@@ -1444,7 +1810,7 @@
                       data-slides='{{ state.recent_draft.slide_urls|tojson|safe }}'
                       onclick="openViewer(this)"
                     >
-                      <img src="{{ state.recent_draft.slide_urls[0] }}" alt="{{ state.recent_draft.topic }}">
+                      <img src="{{ state.recent_draft.slide_urls[0] }}" alt="{{ state.recent_draft.topic }}" loading="lazy">
                     </button>
                   {% else %}
                     <div class="empty-state">No preview image found for the latest draft.</div>
@@ -1530,7 +1896,7 @@
                       data-slides='{{ state.recent_draft.slide_urls|tojson|safe }}'
                       onclick="openViewer(this, {{ loop.index0 }})"
                     >
-                      <img src="{{ slide_url }}" alt="Slide {{ loop.index }}">
+                      <img src="{{ slide_url }}" alt="Slide {{ loop.index }}" loading="lazy">
                     </button>
                   {% endfor %}
                 </div>
@@ -1551,9 +1917,33 @@
         </div>
 
         {% if state.cardnews_drafts %}
-          <div class="draft-list">
+          <div class="filter-bar" id="draftFilterBar">
+            <button type="button" class="filter-chip is-active" data-filter="all">
+              All <span class="fc-count">{{ state.cardnews_drafts|length }}</span>
+            </button>
+            {% set pub_n = state.cardnews_drafts | selectattr('status','equalto','published') | list | length %}
+            {% set apv_n = state.cardnews_drafts | selectattr('status','equalto','approved')  | list | length %}
+            {% set pnd_n = state.cardnews_drafts | length - pub_n - apv_n %}
+            {% if pnd_n > 0 %}
+            <button type="button" class="filter-chip" data-filter="pending">
+              Pending <span class="fc-count">{{ pnd_n }}</span>
+            </button>
+            {% endif %}
+            {% if apv_n > 0 %}
+            <button type="button" class="filter-chip" data-filter="approved">
+              Approved <span class="fc-count">{{ apv_n }}</span>
+            </button>
+            {% endif %}
+            {% if pub_n > 0 %}
+            <button type="button" class="filter-chip" data-filter="published">
+              Published <span class="fc-count">{{ pub_n }}</span>
+            </button>
+            {% endif %}
+          </div>
+
+          <div class="draft-list" id="draftList">
             {% for draft in state.cardnews_drafts[:3] %}
-              <article class="draft-row">
+              <article class="draft-row" data-status="{{ draft.status }}">
                 <div class="draft-row-thumb">
                   {% if draft.slide_urls %}
                     <button
@@ -1562,7 +1952,7 @@
                       data-slides='{{ draft.slide_urls|tojson|safe }}'
                       onclick="openViewer(this)"
                     >
-                      <img src="{{ draft.slide_urls[0] }}" alt="{{ draft.topic }}">
+                      <img src="{{ draft.slide_urls[0] }}" alt="{{ draft.topic }}" loading="lazy">
                     </button>
                   {% endif %}
                 </div>
@@ -1614,7 +2004,7 @@
               <div class="legacy-body">
                 <div class="compact-draft-list">
                   {% for draft in state.cardnews_drafts[3:] %}
-                    <article class="compact-draft-row">
+                    <article class="compact-draft-row" data-status="{{ draft.status }}">
                       <div>
                         <h4>{{ draft.topic }}</h4>
                         <p>{{ draft.created_at }} · {{ draft.format }} · {{ draft.slide_count_label }} · {{ draft.review.status }}</p>
@@ -1695,8 +2085,8 @@
             <div class="settings-body">
               <div class="field-grid">
                 <div class="field-group">
-                  <label class="field-label">LLM Provider</label>
-                  <select name="llm_provider">
+                  <label class="field-label" for="s-llm-provider">LLM Provider</label>
+                  <select name="llm_provider" id="s-llm-provider">
                     {% for provider in state.llm.provider_options %}
                       <option value="{{ provider }}" {% if state.config.get('llm_provider', 'ollama') == provider %}selected{% endif %}>{{ provider }}</option>
                     {% endfor %}
@@ -1704,33 +2094,33 @@
                 </div>
 
                 <div class="field-group">
-                  <label class="field-label">LLM Model</label>
-                  <input name="llm_model" value="{{ state.config.get('llm_model', '') or state.config.get('openai_model', '') or state.config.get('ollama_model', '') or state.config.get('gemini_model', '') }}" placeholder="qwen/qwen3-30b-a3b-2507">
+                  <label class="field-label" for="s-llm-model">LLM Model</label>
+                  <input name="llm_model" id="s-llm-model" value="{{ state.config.get('llm_model', '') or state.config.get('openai_model', '') or state.config.get('ollama_model', '') or state.config.get('gemini_model', '') }}" placeholder="qwen/qwen3-30b-a3b-2507">
                 </div>
 
                 <div class="field-group">
-                  <label class="field-label">Ollama Base URL</label>
-                  <input name="ollama_base_url" value="{{ state.config.get('ollama_base_url', 'http://127.0.0.1:11434') }}">
+                  <label class="field-label" for="s-ollama-base-url">Ollama Base URL</label>
+                  <input name="ollama_base_url" id="s-ollama-base-url" value="{{ state.config.get('ollama_base_url', 'http://127.0.0.1:11434') }}">
                 </div>
 
                 <div class="field-group">
-                  <label class="field-label">OpenAI / LM Studio Base URL</label>
-                  <input name="openai_base_url" value="{{ state.config.get('openai_base_url', 'http://127.0.0.1:1234/v1') }}">
+                  <label class="field-label" for="s-openai-base-url">OpenAI / LM Studio Base URL</label>
+                  <input name="openai_base_url" id="s-openai-base-url" value="{{ state.config.get('openai_base_url', 'http://127.0.0.1:1234/v1') }}">
                 </div>
 
                 <div class="field-group">
-                  <label class="field-label">OpenAI API Key</label>
-                  <input name="openai_api_key" type="password" placeholder="{% if state.config.get('openai_api_key') %}Leave blank to keep current key{% else %}Set API key or LM Studio placeholder{% endif %}">
+                  <label class="field-label" for="s-openai-api-key">OpenAI API Key</label>
+                  <input name="openai_api_key" id="s-openai-api-key" type="password" placeholder="{% if state.config.get('openai_api_key') %}Leave blank to keep current key{% else %}Set API key or LM Studio placeholder{% endif %}">
                 </div>
 
                 <div class="field-group">
-                  <label class="field-label">Gemini Model</label>
-                  <input name="gemini_model" value="{{ state.config.get('gemini_model', 'gemini-2.5-flash') }}">
+                  <label class="field-label" for="s-gemini-model">Gemini Model</label>
+                  <input name="gemini_model" id="s-gemini-model" value="{{ state.config.get('gemini_model', 'gemini-2.5-flash') }}">
                 </div>
 
                 <div class="field-group field-span-2">
-                  <label class="field-label">Gemini API Key</label>
-                  <input name="gemini_api_key" type="password" placeholder="{% if state.config.get('gemini_api_key') %}Leave blank to keep current key{% else %}Set Gemini API key{% endif %}">
+                  <label class="field-label" for="s-gemini-api-key">Gemini API Key</label>
+                  <input name="gemini_api_key" id="s-gemini-api-key" type="password" placeholder="{% if state.config.get('gemini_api_key') %}Leave blank to keep current key{% else %}Set Gemini API key{% endif %}">
                 </div>
               </div>
             </div>
@@ -1765,8 +2155,8 @@
               </details>
               <div class="field-grid">
                 <div class="field-group">
-                  <label class="field-label">Image Provider</label>
-                  <select name="image_provider">
+                  <label class="field-label" for="s-image-provider">Image Provider</label>
+                  <select name="image_provider" id="s-image-provider">
                     {% for provider in state.image.provider_options %}
                       <option value="{{ provider }}" {% if state.image.config.provider == provider %}selected{% endif %}>{{ provider }}</option>
                     {% endfor %}
@@ -1774,64 +2164,64 @@
                 </div>
 
                 <div class="field-group">
-                  <label class="field-label">Gemini Image Model</label>
-                  <input name="nanobanana2_model" value="{{ state.config.get('nanobanana2_model', state.image.config.gemini.model) }}" placeholder="gemini-3.1-flash-image-preview">
+                  <label class="field-label" for="s-nb2-model">Gemini Image Model</label>
+                  <input name="nanobanana2_model" id="s-nb2-model" value="{{ state.config.get('nanobanana2_model', state.image.config.gemini.model) }}" placeholder="gemini-3.1-flash-image-preview">
                 </div>
 
                 <div class="field-group field-span-2">
-                  <label class="field-label">Gemini Image API Key</label>
-                  <input name="nanobanana2_api_key" type="password" placeholder="{% if state.config.get('nanobanana2_api_key') %}Leave blank to keep current key{% else %}Set Gemini image key{% endif %}">
+                  <label class="field-label" for="s-nb2-api-key">Gemini Image API Key</label>
+                  <input name="nanobanana2_api_key" id="s-nb2-api-key" type="password" placeholder="{% if state.config.get('nanobanana2_api_key') %}Leave blank to keep current key{% else %}Set Gemini image key{% endif %}">
                 </div>
 
                 <div class="field-group">
-                  <label class="field-label">Gemini Image Base URL</label>
-                  <input name="nanobanana2_api_base_url" value="{{ state.config.get('nanobanana2_api_base_url', state.image.config.gemini.api_base_url) }}">
+                  <label class="field-label" for="s-nb2-base-url">Gemini Image Base URL</label>
+                  <input name="nanobanana2_api_base_url" id="s-nb2-base-url" value="{{ state.config.get('nanobanana2_api_base_url', state.image.config.gemini.api_base_url) }}">
                 </div>
 
                 <div class="field-group">
-                  <label class="field-label">Gemini Aspect Ratio</label>
-                  <input name="nanobanana2_aspect_ratio" value="{{ state.config.get('nanobanana2_aspect_ratio', state.image.config.gemini.aspect_ratio) }}" placeholder="4:5">
+                  <label class="field-label" for="s-nb2-aspect-ratio">Gemini Aspect Ratio</label>
+                  <input name="nanobanana2_aspect_ratio" id="s-nb2-aspect-ratio" value="{{ state.config.get('nanobanana2_aspect_ratio', state.image.config.gemini.aspect_ratio) }}" placeholder="4:5">
                 </div>
 
                 <div class="field-group">
-                  <label class="field-label">ComfyUI Base URL</label>
-                  <input name="comfyui_base_url" value="{{ state.image.config.comfyui.base_url }}" placeholder="http://127.0.0.1:8188">
+                  <label class="field-label" for="s-comfyui-base-url">ComfyUI Base URL</label>
+                  <input name="comfyui_base_url" id="s-comfyui-base-url" value="{{ state.image.config.comfyui.base_url }}" placeholder="http://127.0.0.1:8188">
                 </div>
 
                 <div class="field-group">
-                  <label class="field-label">ComfyUI Workflow Path</label>
-                  <input name="comfyui_workflow_path" value="{{ state.image.config.comfyui.workflow_path }}" placeholder="/absolute/path/to/workflow_api.json">
+                  <label class="field-label" for="s-comfyui-workflow-path">ComfyUI Workflow Path</label>
+                  <input name="comfyui_workflow_path" id="s-comfyui-workflow-path" value="{{ state.image.config.comfyui.workflow_path }}" placeholder="/absolute/path/to/workflow_api.json">
                   <p class="field-hint">Leave this blank to use the built-in checkpoint workflow.</p>
                 </div>
 
                 <div class="field-group">
-                  <label class="field-label">ComfyUI Checkpoint</label>
-                  <input name="comfyui_checkpoint" value="{{ state.image.config.comfyui.checkpoint }}" placeholder="flux1-schnell-fp8.safetensors">
+                  <label class="field-label" for="s-comfyui-checkpoint">ComfyUI Checkpoint</label>
+                  <input name="comfyui_checkpoint" id="s-comfyui-checkpoint" value="{{ state.image.config.comfyui.checkpoint }}" placeholder="flux1-schnell-fp8.safetensors">
                 </div>
 
                 <div class="field-group">
-                  <label class="field-label">ComfyUI Sampler</label>
-                  <input name="comfyui_sampler_name" value="{{ state.image.config.comfyui.sampler_name }}" placeholder="euler">
+                  <label class="field-label" for="s-comfyui-sampler">ComfyUI Sampler</label>
+                  <input name="comfyui_sampler_name" id="s-comfyui-sampler" value="{{ state.image.config.comfyui.sampler_name }}" placeholder="euler">
                 </div>
 
                 <div class="field-group">
-                  <label class="field-label">ComfyUI Steps</label>
-                  <input name="comfyui_steps" value="{{ state.image.config.comfyui.steps }}">
+                  <label class="field-label" for="s-comfyui-steps">ComfyUI Steps</label>
+                  <input name="comfyui_steps" id="s-comfyui-steps" value="{{ state.image.config.comfyui.steps }}">
                 </div>
 
                 <div class="field-group">
-                  <label class="field-label">ComfyUI CFG</label>
-                  <input name="comfyui_cfg" value="{{ state.image.config.comfyui.cfg }}">
+                  <label class="field-label" for="s-comfyui-cfg">ComfyUI CFG</label>
+                  <input name="comfyui_cfg" id="s-comfyui-cfg" value="{{ state.image.config.comfyui.cfg }}">
                 </div>
 
                 <div class="field-group">
-                  <label class="field-label">ComfyUI Scheduler</label>
-                  <input name="comfyui_scheduler" value="{{ state.image.config.comfyui.scheduler }}" placeholder="normal">
+                  <label class="field-label" for="s-comfyui-scheduler">ComfyUI Scheduler</label>
+                  <input name="comfyui_scheduler" id="s-comfyui-scheduler" value="{{ state.image.config.comfyui.scheduler }}" placeholder="normal">
                 </div>
 
                 <div class="field-group field-span-2">
-                  <label class="field-label">ComfyUI Negative Prompt</label>
-                  <textarea name="comfyui_negative_prompt" placeholder="low quality, blurry, distorted, watermark, logo, text">{{ state.image.config.comfyui.negative_prompt }}</textarea>
+                  <label class="field-label" for="s-comfyui-neg-prompt">ComfyUI Negative Prompt</label>
+                  <textarea name="comfyui_negative_prompt" id="s-comfyui-neg-prompt" placeholder="low quality, blurry, distorted, watermark, logo, text">{{ state.image.config.comfyui.negative_prompt }}</textarea>
                   <p class="field-hint">FLUX Schnell usually works without a negative prompt. SDXL tends to benefit from one.</p>
                 </div>
               </div>
@@ -1846,33 +2236,33 @@
             <div class="settings-body">
               <div class="field-grid">
                 <div class="field-group">
-                  <label class="field-label">Content Format</label>
-                  <select name="cardnews_format">
+                  <label class="field-label" for="s-cn-format">Content Format</label>
+                  <select name="cardnews_format" id="s-cn-format">
                     <option value="carousel" {% if state.cardnews_defaults.format == 'carousel' %}selected{% endif %}>carousel</option>
                     <option value="poster" {% if state.cardnews_defaults.format == 'poster' %}selected{% endif %}>poster</option>
                   </select>
                 </div>
 
                 <div class="field-group">
-                  <label class="field-label">Slides Per Post</label>
-                  <input name="slides_per_post" value="{{ state.cardnews_defaults.slides_per_post }}">
+                  <label class="field-label" for="s-slides-per-post">Slides Per Post</label>
+                  <input name="slides_per_post" id="s-slides-per-post" value="{{ state.cardnews_defaults.slides_per_post }}">
                   <p class="field-hint">Used when the content format is `carousel`.</p>
                 </div>
 
                 <div class="field-group">
-                  <label class="field-label">Poster Item Count</label>
-                  <input name="poster_item_count" value="{{ state.cardnews_defaults.poster_item_count }}">
+                  <label class="field-label" for="s-poster-item-count">Poster Item Count</label>
+                  <input name="poster_item_count" id="s-poster-item-count" value="{{ state.cardnews_defaults.poster_item_count }}">
                   <p class="field-hint">Used when the content format is `poster`.</p>
                 </div>
 
                 <div class="field-group">
-                  <label class="field-label">Default Channels</label>
-                  <input name="default_channels" value="{{ state.cardnews_defaults.default_channels|join(', ') }}">
+                  <label class="field-label" for="s-default-channels">Default Channels</label>
+                  <input name="default_channels" id="s-default-channels" value="{{ state.cardnews_defaults.default_channels|join(', ') }}">
                 </div>
 
                 <div class="field-group">
-                  <label class="field-label">Background Strategy</label>
-                  <select name="background_strategy">
+                  <label class="field-label" for="s-bg-strategy">Background Strategy</label>
+                  <select name="background_strategy" id="s-bg-strategy">
                     <option value="deck_pair" {% if state.cardnews_defaults.background_strategy == 'deck_pair' %}selected{% endif %}>deck_pair</option>
                     <option value="shared_single" {% if state.cardnews_defaults.background_strategy == 'shared_single' %}selected{% endif %}>shared_single</option>
                     <option value="per_slide" {% if state.cardnews_defaults.background_strategy == 'per_slide' %}selected{% endif %}>per_slide</option>
@@ -1881,8 +2271,8 @@
                 </div>
 
                 <div class="field-group">
-                  <label class="field-label">Background Style</label>
-                  <select name="background_style">
+                  <label class="field-label" for="s-bg-style">Background Style</label>
+                  <select name="background_style" id="s-bg-style">
                     <option value="editorial_abstract" {% if state.cardnews_defaults.background_style == 'editorial_abstract' %}selected{% endif %}>editorial_abstract</option>
                     <option value="paper_layers" {% if state.cardnews_defaults.background_style == 'paper_layers' %}selected{% endif %}>paper_layers</option>
                     <option value="minimal_gradient" {% if state.cardnews_defaults.background_style == 'minimal_gradient' %}selected{% endif %}>minimal_gradient</option>
@@ -1957,6 +2347,8 @@
     </main>
   </div>
 
+  <div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="false"></div>
+
   <div id="viewerModal" class="viewer-modal" onclick="closeViewer(event)">
     <div class="viewer-panel" onclick="event.stopPropagation()">
       <div class="viewer-header">
@@ -1979,20 +2371,96 @@
 
   <script id="initialJobsData" type="application/json">{{ state.cardnews_jobs|tojson|safe }}</script>
   <script>
+    // ── TOAST ────────────────────────────────────────────────────
+    function showToast(message, type = 'info', duration = 4200) {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.setAttribute('role', 'alert');
+      const msg = document.createElement('span');
+      msg.textContent = message;
+      const closeBtn = document.createElement('button');
+      closeBtn.type = 'button';
+      closeBtn.className = 'toast-close';
+      closeBtn.setAttribute('aria-label', 'Dismiss');
+      closeBtn.textContent = '×';
+      closeBtn.onclick = () => dismissToast(toast);
+      toast.appendChild(msg);
+      toast.appendChild(closeBtn);
+      container.appendChild(toast);
+      if (duration > 0) setTimeout(() => dismissToast(toast), duration);
+    }
+    function dismissToast(toast) {
+      if (!toast || toast.classList.contains('exit')) return;
+      toast.classList.add('exit');
+      toast.addEventListener('animationend', () => toast.remove(), { once: true });
+    }
+
+    // ── DARK MODE ────────────────────────────────────────────────
+    const SUN_SVG  = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
+    const MOON_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
+
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('mpv2-theme', theme);
+      const btn   = document.getElementById('themeToggle');
+      const label = document.getElementById('themeLabel');
+      if (btn) {
+        const svg = btn.querySelector('svg');
+        if (svg) { const t = document.createElement('span'); t.innerHTML = theme === 'dark' ? SUN_SVG : MOON_SVG; svg.replaceWith(t.firstChild); }
+      }
+      if (label) label.textContent = theme === 'dark' ? 'Light mode' : 'Dark mode';
+    }
+
+    (function initTheme() {
+      const saved = localStorage.getItem('mpv2-theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const theme = saved || (prefersDark ? 'dark' : 'light');
+      if (theme === 'dark') applyTheme('dark');
+    })();
+
+    document.getElementById('themeToggle')?.addEventListener('click', () => {
+      const cur = document.documentElement.getAttribute('data-theme');
+      applyTheme(cur === 'dark' ? 'light' : 'dark');
+    });
+
+    // ── SKELETON ─────────────────────────────────────────────────
+    function renderQueueSkeleton() {
+      const root = document.getElementById('jobQueue');
+      if (!root || root.dataset.loaded) return;
+      root.innerHTML = `
+        <div class="queue-list">
+          <div class="skeleton-card">
+            <div class="skeleton-row">
+              <div class="skeleton-col">
+                <div class="skeleton-line w-28"></div>
+                <div class="skeleton-line w-65"></div>
+              </div>
+              <div class="skeleton-line pill"></div>
+            </div>
+            <div class="skeleton-line w-100"></div>
+            <div class="skeleton-line bar"></div>
+            <div class="skeleton-row"><div class="skeleton-line w-42"></div></div>
+          </div>
+        </div>`;
+    }
+
+    // ── JOB QUEUE ────────────────────────────────────────────────
     let viewerSlides = [];
-    let viewerIndex = 0;
+    let viewerIndex  = 0;
+    let _prevJobStatuses = {};
 
     function statusTone(status) {
       if (status === "completed") return "ok";
-      if (status === "failed") return "warn";
-      if (status === "running" || status === "queued") return "muted";
+      if (status === "failed")    return "warn";
       return "muted";
     }
 
     function renderJobs(jobs) {
       const queueRoot = document.getElementById("jobQueue");
       if (!queueRoot) return;
-
+      queueRoot.dataset.loaded = "1";
       queueRoot.innerHTML = "";
       if (!jobs.length) {
         const empty = document.createElement("div");
@@ -2001,27 +2469,21 @@
         queueRoot.appendChild(empty);
         return;
       }
-
-      const activeJobs = jobs.filter((job) => job.is_active);
-      const archivedJobs = jobs.filter((job) => !job.is_active);
-
+      const activeJobs   = jobs.filter((j) => j.is_active);
+      const archivedJobs = jobs.filter((j) => !j.is_active);
       if (!activeJobs.length) {
         const empty = document.createElement("div");
         empty.className = "empty-state";
         empty.textContent = "No generation is running right now. Recent history is tucked below so this panel stays readable.";
         queueRoot.appendChild(empty);
       }
-
       const list = document.createElement("div");
       list.className = "queue-list";
-
       activeJobs.slice(0, 2).forEach((job) => {
         const card = document.createElement("article");
         card.className = "job-card";
-
         const head = document.createElement("div");
         head.className = "job-head";
-
         const titleWrap = document.createElement("div");
         const kicker = document.createElement("p");
         kicker.className = "job-kicker";
@@ -2030,36 +2492,28 @@
         title.textContent = job.topic || "New draft generation";
         titleWrap.appendChild(kicker);
         titleWrap.appendChild(title);
-
         const pill = document.createElement("span");
         pill.className = `status-pill ${statusTone(job.status)}`;
         pill.textContent = job.status || "queued";
-
         head.appendChild(titleWrap);
         head.appendChild(pill);
-
         const copy = document.createElement("p");
         copy.className = "job-copy";
         copy.textContent = job.message || "Waiting for progress update.";
-
         const progressWrap = document.createElement("div");
         progressWrap.className = "job-progress";
         const progressBar = document.createElement("div");
         progressBar.className = "job-progress-bar";
         progressBar.style.width = `${Math.max(0, Math.min(Number(job.progress || 0), 100))}%`;
         progressWrap.appendChild(progressBar);
-
         const meta = document.createElement("div");
         meta.className = "job-meta";
         const left = document.createElement("p");
         left.className = "compact-note";
-        if (job.step_current && job.step_total) {
-          left.textContent = `Step ${job.step_current} / ${job.step_total} · ${job.progress || 0}%`;
-        } else {
-          left.textContent = `${job.progress || 0}% complete`;
-        }
+        left.textContent = job.step_current && job.step_total
+          ? `Step ${job.step_current} / ${job.step_total} · ${job.progress || 0}%`
+          : `${job.progress || 0}% complete`;
         meta.appendChild(left);
-
         if (job.status === "completed" && job.draft_id) {
           const link = document.createElement("a");
           link.className = "job-link";
@@ -2067,55 +2521,40 @@
           link.textContent = "Open draft library";
           meta.appendChild(link);
         } else if (job.status === "failed" && job.error) {
-          const error = document.createElement("span");
-          error.className = "chip warn";
-          error.textContent = job.error;
-          meta.appendChild(error);
+          const errSpan = document.createElement("span");
+          errSpan.className = "chip warn";
+          errSpan.textContent = job.error;
+          meta.appendChild(errSpan);
         }
-
         card.appendChild(head);
         card.appendChild(copy);
         card.appendChild(progressWrap);
         card.appendChild(meta);
         list.appendChild(card);
       });
-
-      if (activeJobs.length) {
-        queueRoot.appendChild(list);
-      }
-
+      if (activeJobs.length) queueRoot.appendChild(list);
       if (archivedJobs.length) {
         const details = document.createElement("details");
         details.className = "queue-history";
-
         const summary = document.createElement("summary");
         summary.textContent = `Recent History · ${archivedJobs.length}`;
         details.appendChild(summary);
-
         const historyList = document.createElement("div");
         historyList.className = "queue-history-list";
-
         archivedJobs.slice(0, 4).forEach((job) => {
           const row = document.createElement("article");
           row.className = "queue-history-row";
-
-          const title = document.createElement("strong");
-          title.textContent = job.topic || "Recent generation job";
-
-          const meta = document.createElement("p");
-          meta.className = "compact-note";
-          meta.textContent = `${job.profile_nickname || "CardNews"} · ${job.format || "carousel"} · ${job.status || "completed"}`;
-
-          const copy = document.createElement("p");
-          copy.className = "compact-note";
-          copy.textContent = job.message || job.error || "Finished";
-
-          row.appendChild(title);
-          row.appendChild(meta);
-          row.appendChild(copy);
+          const t = document.createElement("strong");
+          t.textContent = job.topic || "Recent generation job";
+          const m = document.createElement("p");
+          m.className = "compact-note";
+          m.textContent = `${job.profile_nickname || "CardNews"} · ${job.format || "carousel"} · ${job.status || "completed"}`;
+          const c = document.createElement("p");
+          c.className = "compact-note";
+          c.textContent = job.message || job.error || "Finished";
+          row.appendChild(t); row.appendChild(m); row.appendChild(c);
           historyList.appendChild(row);
         });
-
         details.appendChild(historyList);
         queueRoot.appendChild(details);
       }
@@ -2126,103 +2565,112 @@
         const response = await fetch("/api/jobs", { cache: "no-store" });
         if (!response.ok) return;
         const payload = await response.json();
-        renderJobs(Array.isArray(payload.jobs) ? payload.jobs : []);
-      } catch (_error) {
-      }
+        const jobs = Array.isArray(payload.jobs) ? payload.jobs : [];
+        jobs.forEach((job) => {
+          const prev = _prevJobStatuses[job.id];
+          if (prev && prev !== job.status) {
+            if (job.status === 'completed') showToast(`"${job.topic || 'Job'}" 생성 완료.`, 'success');
+            if (job.status === 'failed')    showToast(`생성 실패: ${job.error || '알 수 없는 오류'}`, 'error');
+          }
+          _prevJobStatuses[job.id] = job.status;
+        });
+        renderJobs(jobs);
+      } catch (_e) {}
     }
 
+    // ── VIEWER ───────────────────────────────────────────────────
     function renderViewer() {
-      const viewerImage = document.getElementById("viewerImage");
-      const viewerCount = document.getElementById("viewerCount");
+      const viewerImage   = document.getElementById("viewerImage");
+      const viewerCount   = document.getElementById("viewerCount");
       const viewerSidebar = document.getElementById("viewerSidebar");
       const prevBtn = document.getElementById("viewerPrev");
       const nextBtn = document.getElementById("viewerNext");
-
       viewerImage.src = viewerSlides[viewerIndex] || "";
       viewerCount.textContent = viewerSlides.length ? `Slide ${viewerIndex + 1} / ${viewerSlides.length}` : "";
       if (prevBtn) prevBtn.disabled = viewerIndex === 0;
       if (nextBtn) nextBtn.disabled = viewerIndex === viewerSlides.length - 1;
       viewerSidebar.innerHTML = "";
-
       viewerSlides.forEach((slide, index) => {
-        const button = document.createElement("button");
-        button.type = "button";
-        if (index === viewerIndex) {
-          button.classList.add("is-active");
-        }
-        button.onclick = () => {
-          viewerIndex = index;
-          renderViewer();
-        };
-
-        const image = document.createElement("img");
-        image.src = slide;
-        image.alt = `Slide ${index + 1}`;
-        button.appendChild(image);
-        viewerSidebar.appendChild(button);
+        const btn = document.createElement("button");
+        btn.type = "button";
+        if (index === viewerIndex) btn.classList.add("is-active");
+        btn.onclick = () => { viewerIndex = index; renderViewer(); };
+        const img = document.createElement("img");
+        img.src = slide; img.alt = `Slide ${index + 1}`;
+        btn.appendChild(img);
+        viewerSidebar.appendChild(btn);
       });
     }
-
     function openViewer(element, index = 0) {
       const slides = JSON.parse(element.dataset.slides || "[]");
       if (!slides.length) return;
       viewerSlides = slides;
-      viewerIndex = index;
+      viewerIndex  = index;
       document.getElementById("viewerTitle").textContent = element.dataset.topic || "CardNews Preview";
       document.getElementById("viewerModal").classList.add("is-open");
       document.body.style.overflow = "hidden";
       renderViewer();
     }
-
     function viewerNav(dir) {
-      const newIndex = viewerIndex + dir;
-      if (newIndex >= 0 && newIndex < viewerSlides.length) {
-        viewerIndex = newIndex;
-        renderViewer();
-      }
+      const n = viewerIndex + dir;
+      if (n >= 0 && n < viewerSlides.length) { viewerIndex = n; renderViewer(); }
     }
-
     function closeViewer(event) {
-      if (event && event.target && event.target !== document.getElementById("viewerModal")) {
-        return;
-      }
+      if (event && event.target !== document.getElementById("viewerModal")) return;
       document.getElementById("viewerModal").classList.remove("is-open");
       document.body.style.overflow = "";
     }
-
-    document.addEventListener("keydown", (event) => {
+    document.addEventListener("keydown", (e) => {
       const modal = document.getElementById("viewerModal");
       if (!modal.classList.contains("is-open")) return;
-
-      if (event.key === "Escape") {
-        closeViewer();
-      }
-      if (event.key === "ArrowRight" && viewerIndex < viewerSlides.length - 1) {
-        viewerIndex += 1;
-        renderViewer();
-      }
-      if (event.key === "ArrowLeft" && viewerIndex > 0) {
-        viewerIndex -= 1;
-        renderViewer();
-      }
+      if (e.key === "Escape") closeViewer();
+      if (e.key === "ArrowRight" && viewerIndex < viewerSlides.length - 1) { viewerIndex += 1; renderViewer(); }
+      if (e.key === "ArrowLeft"  && viewerIndex > 0)                        { viewerIndex -= 1; renderViewer(); }
     });
+
+    // ── DRAFT FILTER ─────────────────────────────────────────────
+    document.getElementById('draftFilterBar')?.addEventListener('click', (e) => {
+      const chip = e.target.closest('.filter-chip');
+      if (!chip) return;
+      const filter = chip.dataset.filter;
+      document.querySelectorAll('#draftFilterBar .filter-chip').forEach(c => c.classList.remove('is-active'));
+      chip.classList.add('is-active');
+      document.querySelectorAll('#draftList [data-status], .compact-draft-list [data-status]').forEach(row => {
+        if (filter === 'all') {
+          row.hidden = false;
+        } else if (filter === 'pending') {
+          row.hidden = row.dataset.status === 'approved' || row.dataset.status === 'published';
+        } else {
+          row.hidden = row.dataset.status !== filter;
+        }
+      });
+    });
+
+    // ── INIT ─────────────────────────────────────────────────────
+    renderQueueSkeleton();
 
     const initialJobsNode = document.getElementById("initialJobsData");
     if (initialJobsNode) {
-      try {
-        renderJobs(JSON.parse(initialJobsNode.textContent || "[]"));
-      } catch (_error) {
-        renderJobs([]);
-      }
+      try { renderJobs(JSON.parse(initialJobsNode.textContent || "[]")); }
+      catch (_e) { renderJobs([]); }
     }
 
-    const generateForm = document.getElementById("generateForm");
+    const generateForm   = document.getElementById("generateForm");
     const generateButton = document.getElementById("generateButton");
     if (generateForm && generateButton) {
       generateForm.addEventListener("submit", () => {
         generateButton.disabled = true;
         generateButton.textContent = "Queueing...";
       });
+    }
+
+    const flashNode = document.getElementById('flashData');
+    if (flashNode) {
+      try {
+        const flash = JSON.parse(flashNode.textContent || '{}');
+        if (flash.notice) showToast(flash.notice, 'success');
+        if (flash.error)  showToast(flash.error,  'error');
+      } catch (_e) {}
     }
 
     pollJobs();
