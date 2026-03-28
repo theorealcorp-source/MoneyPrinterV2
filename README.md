@@ -27,6 +27,7 @@ MPV2 (MoneyPrinter Version 2) is, as the name suggests, the second version of th
 - [x] YouTube Shorts Automator (with CRON Jobs => `scheduler`)
 - [x] Affiliate Marketing (Amazon + Twitter)
 - [x] Find local businesses & cold outreach
+- [x] Card News Studio with review gate and Post Bridge publishing
 
 ## Versions
 
@@ -65,6 +66,9 @@ pip install -r requirements.txt
 ```bash
 # Run the application
 python src/main.py
+
+# Optional: run the dashboard
+python src/dashboard.py
 ```
 
 ## Documentation

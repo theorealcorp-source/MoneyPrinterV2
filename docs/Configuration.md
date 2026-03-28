@@ -7,8 +7,16 @@ All your configurations will be in a file in the root directory, called `config.
 - `verbose`: `boolean` - If `true`, the application will print out more information.
 - `firefox_profile`: `string` - The path to your Firefox profile. This is used to use your Social Media Accounts without having to log in every time you run the application.
 - `headless`: `boolean` - If `true`, the application will run in headless mode. This means that the browser will not be visible.
+- `llm_provider`: `string` - Active text-generation provider. Supported values are `lmstudio`, `ollama`, `openai`, `gemini`.
+- `llm_model`: `string` - Active model id used by the selected provider. When blank, MPV2 falls back to provider-specific model keys.
 - `ollama_base_url`: `string` - Base URL of your local Ollama server (default: `http://127.0.0.1:11434`).
 - `ollama_model`: `string` - Ollama model to use for text generation (e.g. `llama3.2:3b`). If empty, the app queries Ollama at startup and lets you pick from the available models interactively.
+- `openai_base_url`: `string` - Base URL for OpenAI-compatible chat APIs. Use `http://127.0.0.1:1234/v1` for LM Studio local server.
+- `openai_api_key`: `string` - API key for OpenAI-compatible APIs. LM Studio can use a placeholder like `lm-studio`.
+- `openai_model`: `string` - Model id for OpenAI-compatible providers, including LM Studio.
+- `gemini_api_base_url`: `string` - Gemini text API base URL (default: `https://generativelanguage.googleapis.com/v1beta`).
+- `gemini_api_key`: `string` - Gemini API key. If empty, MPV2 falls back to `GEMINI_API_KEY`.
+- `gemini_model`: `string` - Gemini text model name (default: `gemini-2.5-flash`).
 - `twitter_language`: `string` - The language that will be used to generate & post tweets.
 - `nanobanana2_api_base_url`: `string` - Nano Banana 2 API base URL (default: `https://generativelanguage.googleapis.com/v1beta`).
 - `nanobanana2_api_key`: `string` - API key for Nano Banana 2 (Gemini image API). If empty, MPV2 falls back to environment variable `GEMINI_API_KEY`.
@@ -44,6 +52,15 @@ All your configurations will be in a file in the root directory, called `config.
     - `platforms`: `string[]` - Platforms to target. Supported values in v1 are `tiktok` and `instagram`.
     - `account_ids`: `number[]` - Optional fixed Post Bridge account IDs to avoid account-selection prompts.
     - `auto_crosspost`: `boolean` - If `true`, cross-post automatically after a successful YouTube upload. If `false`, interactive runs ask and cron runs skip.
+- `cardnews`: `object`:
+    - `slides_per_post`: `number` - How many slides are generated for each card-news draft.
+    - `review_required`: `boolean` - If `true`, drafts must be approved before publishing.
+    - `default_channels`: `string[]` - Default publish channels for card-news drafts. MVP supports `instagram` and `tiktok`.
+    - `render_width`: `number` - Output width in pixels for rendered slides.
+    - `render_height`: `number` - Output height in pixels for rendered slides.
+- `dashboard`: `object`:
+    - `host`: `string` - Bind address for the Flask dashboard.
+    - `port`: `number` - Port for the Flask dashboard.
 
 ## Example
 
@@ -52,8 +69,16 @@ All your configurations will be in a file in the root directory, called `config.
   "verbose": true,
   "firefox_profile": "",
   "headless": false,
+  "llm_provider": "lmstudio",
+  "llm_model": "qwen/qwen3-30b-a3b-2507",
   "ollama_base_url": "http://127.0.0.1:11434",
   "ollama_model": "",
+  "openai_base_url": "http://127.0.0.1:1234/v1",
+  "openai_api_key": "lm-studio",
+  "openai_model": "qwen/qwen3-30b-a3b-2507",
+  "gemini_api_base_url": "https://generativelanguage.googleapis.com/v1beta",
+  "gemini_api_key": "",
+  "gemini_model": "gemini-2.5-flash",
   "twitter_language": "English",
   "nanobanana2_api_base_url": "https://generativelanguage.googleapis.com/v1beta",
   "nanobanana2_api_key": "",
@@ -88,6 +113,17 @@ All your configurations will be in a file in the root directory, called `config.
     "platforms": ["tiktok", "instagram"],
     "account_ids": [],
     "auto_crosspost": false
+  },
+  "cardnews": {
+    "slides_per_post": 6,
+    "review_required": true,
+    "default_channels": ["instagram"],
+    "render_width": 1080,
+    "render_height": 1350
+  },
+  "dashboard": {
+    "host": "127.0.0.1",
+    "port": 5000
   }
 }
 ```
@@ -96,6 +132,7 @@ All your configurations will be in a file in the root directory, called `config.
 
 - `GEMINI_API_KEY`: used when `nanobanana2_api_key` is empty.
 - `POST_BRIDGE_API_KEY`: used when `post_bridge.api_key` is empty.
+- `OPENAI_API_KEY`: used when `openai_api_key` is empty.
 
 Example:
 

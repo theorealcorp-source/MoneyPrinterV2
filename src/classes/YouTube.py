@@ -16,7 +16,11 @@ from uuid import uuid4
 from constants import *
 from typing import List
 from moviepy.editor import *
-from termcolor import colored
+try:
+    from termcolor import colored
+except ModuleNotFoundError:  # pragma: no cover - fallback for minimal test envs
+    def colored(message: str, *_args, **_kwargs) -> str:
+        return str(message)
 from selenium_firefox import *
 from selenium import webdriver
 from moviepy.video.fx.all import crop

@@ -9,6 +9,7 @@ OPTIONS = [
     "YouTube Shorts Automation",
     "Twitter Bot",
     "Affiliate Marketing",
+    "Card News Studio",
     "Outreach",
     "Quit"
 ]
@@ -39,6 +40,15 @@ YOUTUBE_CRON_OPTIONS = [
     "Twice a day",
     "Thrice a day",
     "Quit"
+]
+
+CARDNEWS_OPTIONS = [
+    "Generate Draft",
+    "Show Drafts",
+    "Approve Draft",
+    "Publish Draft",
+    "Setup CRON Job",
+    "Quit",
 ]
 
 # YouTube Section

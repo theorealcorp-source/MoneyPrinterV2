@@ -9,14 +9,242 @@ from status import *
 from uuid import uuid4
 from constants import *
 from classes.Tts import TTS
-from termcolor import colored
+try:
+    from termcolor import colored
+except ModuleNotFoundError:  # pragma: no cover - fallback for minimal test envs
+    def colored(message: str, *_args, **_kwargs) -> str:
+        return str(message)
 from classes.Twitter import Twitter
 from classes.YouTube import YouTube
 from prettytable import PrettyTable
 from classes.Outreach import Outreach
 from classes.AFM import AffiliateMarketing
-from llm_provider import list_models, select_model, get_active_model
+from classes.CardNews import CardNews
+from llm_provider import ensure_model_selected
+from llm_provider import get_active_model
+from llm_provider import get_active_provider
+from llm_provider import list_models
+from llm_provider import select_provider
+from llm_provider import select_provider_model
 from post_bridge_integration import maybe_crosspost_youtube_short
+
+
+def _parse_cardnews_channels(raw_value: str) -> list[str]:
+    channels = []
+    for channel in str(raw_value or "").split(","):
+        normalized = channel.strip().lower()
+        if normalized and normalized not in channels:
+            channels.append(normalized)
+
+    if channels:
+        return channels
+
+    return get_cardnews_config()["default_channels"]
+
+
+def _select_cardnews_profile() -> dict | None:
+    cached_profiles = get_accounts("cardnews")
+
+    if len(cached_profiles) == 0:
+        warning("No CardNews profiles found in cache. Create one now?")
+        user_input = question("Yes/No: ")
+
+        if user_input.lower() == "yes":
+            generated_uuid = str(uuid4())
+            success(f" => Generated ID: {generated_uuid}")
+
+            nickname = question(" => Enter a nickname for this profile: ")
+            niche = question(" => Enter the profile niche: ")
+            language = question(" => Enter the profile language: ")
+            channels = _parse_cardnews_channels(
+                question(" => Enter default channels (comma separated, default instagram): ")
+            )
+
+            profile = {
+                "id": generated_uuid,
+                "nickname": nickname,
+                "niche": niche,
+                "language": language,
+                "channels": channels,
+            }
+            add_account("cardnews", profile)
+            success("CardNews profile configured successfully!")
+            return profile
+
+        return None
+
+    table = PrettyTable()
+    table.field_names = ["ID", "UUID", "Nickname", "Niche", "Channels"]
+
+    for index, profile in enumerate(cached_profiles, start=1):
+        table.add_row(
+            [
+                index,
+                colored(profile["id"], "cyan"),
+                colored(profile["nickname"], "blue"),
+                colored(profile["niche"], "green"),
+                colored(", ".join(profile.get("channels", [])), "yellow"),
+            ]
+        )
+
+    print(table)
+    info("Type 'd' to delete a profile.", False)
+
+    user_input = question("Select a profile to start (or 'd' to delete): ").strip()
+    if user_input.lower() == "d":
+        delete_input = question("Enter profile number to delete: ").strip()
+        profile_to_delete = None
+
+        for index, profile in enumerate(cached_profiles, start=1):
+            if str(index) == delete_input:
+                profile_to_delete = profile
+                break
+
+        if profile_to_delete is None:
+            error("Invalid profile selected. Please try again.", "red")
+        else:
+            confirm = question(
+                f"Are you sure you want to delete '{profile_to_delete['nickname']}'? (Yes/No): "
+            ).strip().lower()
+
+            if confirm == "yes":
+                remove_account("cardnews", profile_to_delete["id"])
+                success("CardNews profile removed successfully!")
+            else:
+                warning("Profile deletion canceled.", False)
+
+        return None
+
+    for index, profile in enumerate(cached_profiles, start=1):
+        if str(index) == user_input:
+            return profile
+
+    error("Invalid profile selected. Please try again.", "red")
+    return None
+
+
+def _select_cardnews_draft(studio: CardNews) -> dict | None:
+    drafts = studio.list_drafts()
+    if len(drafts) == 0:
+        warning("No CardNews drafts found for this profile.")
+        return None
+
+    table = PrettyTable()
+    table.field_names = ["ID", "Draft ID", "Created", "Status", "Topic"]
+    for index, draft in enumerate(drafts, start=1):
+        table.add_row(
+            [
+                index,
+                colored(draft["id"], "cyan"),
+                colored(str(draft.get("created_at", "")), "blue"),
+                colored(str(draft.get("status", "")), "yellow"),
+                colored(str(draft.get("topic", ""))[:54], "green"),
+            ]
+        )
+
+    print(table)
+    selection = question("Select a draft: ").strip()
+    for index, draft in enumerate(drafts, start=1):
+        if str(index) == selection:
+            return draft
+
+    error("Invalid draft selected. Please try again.", "red")
+    return None
+
+
+def start_cardnews_studio() -> None:
+    info("Starting Card News Studio...")
+    profile = _select_cardnews_profile()
+    if profile is None:
+        return
+
+    studio = CardNews(profile)
+
+    while True:
+        info("\n============ OPTIONS ============", False)
+        for idx, option in enumerate(CARDNEWS_OPTIONS):
+            print(colored(f" {idx + 1}. {option}", "cyan"))
+        info("=================================\n", False)
+
+        user_input = int(question("Select an option: "))
+
+        if user_input == 1:
+            topic_override = question(
+                " => Override topic (leave blank to auto-generate): ",
+                False,
+            ).strip()
+            draft = studio.prepare_draft(topic_override or None)
+            review = draft.get("review", {})
+            info(f"Draft review status: {review.get('status', 'pending')}")
+            if review.get("summary"):
+                info(review["summary"], False)
+            for issue in review.get("issues", [])[:5]:
+                warning(issue, False)
+
+            if review.get("status") != "block":
+                approve_now = question("Approve this draft now? (Yes/No): ").strip().lower()
+                if approve_now == "yes":
+                    studio.approve_draft(draft["id"])
+            else:
+                warning("Draft is blocked and cannot be approved until fixed.")
+        elif user_input == 2:
+            draft = _select_cardnews_draft(studio)
+            if draft is not None:
+                info(f"Topic: {draft.get('topic', '')}", False)
+                info(f"Status: {draft.get('status', '')}", False)
+                review = draft.get("review", {})
+                if review.get("summary"):
+                    info(review["summary"], False)
+                for issue in review.get("issues", [])[:5]:
+                    warning(issue, False)
+        elif user_input == 3:
+            draft = _select_cardnews_draft(studio)
+            if draft is not None:
+                studio.approve_draft(draft["id"])
+        elif user_input == 4:
+            draft = _select_cardnews_draft(studio)
+            if draft is not None:
+                studio.publish_draft(draft["id"], interactive=True)
+        elif user_input == 5:
+            info("How often do you want to publish?")
+
+            info("\n============ OPTIONS ============", False)
+            for idx, cron_option in enumerate(YOUTUBE_CRON_OPTIONS):
+                print(colored(f" {idx + 1}. {cron_option}", "cyan"))
+            info("=================================\n", False)
+
+            frequency = int(question("Select an Option: "))
+            cron_script_path = os.path.join(ROOT_DIR, "src", "cron.py")
+            command = [
+                "python",
+                cron_script_path,
+                "cardnews",
+                profile["id"],
+                get_active_model() or "",
+            ]
+
+            def job():
+                subprocess.run(command)
+
+            if frequency == 1:
+                schedule.every(1).day.do(job)
+                success("Set up CardNews CRON Job.")
+            elif frequency == 2:
+                schedule.every().day.at("10:00").do(job)
+                schedule.every().day.at("16:00").do(job)
+                success("Set up CardNews CRON Job.")
+            elif frequency == 3:
+                schedule.every().day.at("08:00").do(job)
+                schedule.every().day.at("12:00").do(job)
+                schedule.every().day.at("18:00").do(job)
+                success("Set up CardNews CRON Job.")
+            else:
+                break
+        elif user_input == 6:
+            if get_verbose():
+                info(" => Leaving Card News Studio...", False)
+            break
+
 
 def main():
     """Main entry point for the application, providing a menu-driven interface
@@ -29,8 +257,9 @@ def main():
        schedule posts using CRON jobs.
     3. Manage Affiliate Marketing by creating pitches and sharing them via 
        Twitter accounts.
-    4. Initiate an Outreach process for engagement and promotion tasks.
-    5. Exit the application.
+    4. Build, review and publish CardNews drafts.
+    5. Initiate an Outreach process for engagement and promotion tasks.
+    6. Exit the application.
 
     The function continuously prompts users for input, validates it, and 
     executes the selected option until the user chooses to quit.
@@ -421,12 +650,14 @@ def main():
                 afm.share_pitch("twitter")
 
     elif user_input == 4:
+        start_cardnews_studio()
+    elif user_input == 5:
         info("Starting Outreach...")
 
         outreach = Outreach()
 
         outreach.start()
-    elif user_input == 5:
+    elif user_input == 6:
         if get_verbose():
             print(colored(" => Quitting...", "blue"))
         sys.exit(0)
@@ -438,6 +669,8 @@ def main():
 if __name__ == "__main__":
     # Print ASCII Banner
     print_banner()
+
+    ensure_config_file()
 
     first_time = get_first_time_running()
 
@@ -453,23 +686,25 @@ if __name__ == "__main__":
     # Fetch MP3 Files
     fetch_songs()
 
-    # Select Ollama model — use config value if set, otherwise pick interactively
-    configured_model = get_ollama_model()
+    provider = get_llm_provider()
+    select_provider(provider)
+
+    configured_model = get_llm_model()
     if configured_model:
-        select_model(configured_model)
-        success(f"Using configured model: {configured_model}")
+        select_provider_model(provider, configured_model)
+        success(f"Using configured {provider} model: {configured_model}")
     else:
         try:
-            models = list_models()
+            models = list_models(provider)
         except Exception as e:
-            error(f"Could not connect to Ollama: {e}")
+            error(f"Could not initialize {provider}: {e}")
             sys.exit(1)
 
         if not models:
-            error("No models found on Ollama. Pull a model first (e.g. 'ollama pull llama3.2:3b').")
+            error(f"No models found for provider '{provider}'.")
             sys.exit(1)
 
-        info("\n========== OLLAMA MODELS =========", False)
+        info(f"\n========== {provider.upper()} MODELS =========", False)
         for idx, model_name in enumerate(models):
             print(colored(f" {idx + 1}. {model_name}", "cyan"))
         info("==================================\n", False)
@@ -486,8 +721,8 @@ if __name__ == "__main__":
             except ValueError:
                 warning("Please enter a number.")
 
-        select_model(model_choice)
-        success(f"Using model: {model_choice}")
+        select_provider_model(provider, model_choice)
+        success(f"Using {provider} model: {model_choice}")
 
     while True:
         main()

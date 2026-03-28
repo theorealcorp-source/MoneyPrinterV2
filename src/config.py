@@ -1,11 +1,96 @@
 import os
 import sys
 import json
-import srt_equalizer
+import shutil
 
-from termcolor import colored
+try:
+    import srt_equalizer
+except ModuleNotFoundError:  # pragma: no cover - optional dependency in tests
+    srt_equalizer = None
+
+try:
+    from termcolor import colored
+except ModuleNotFoundError:  # pragma: no cover - fallback for minimal test envs
+    def colored(message: str, *_args, **_kwargs) -> str:
+        return str(message)
 
 ROOT_DIR = os.path.dirname(sys.path[0])
+CONFIG_PATH = os.path.join(ROOT_DIR, "config.json")
+CONFIG_EXAMPLE_PATH = os.path.join(ROOT_DIR, "config.example.json")
+
+
+def ensure_config_file() -> None:
+    """
+    Ensure a root-level config.json exists.
+
+    Returns:
+        None
+    """
+    if os.path.exists(CONFIG_PATH):
+        return
+
+    if os.path.exists(CONFIG_EXAMPLE_PATH):
+        shutil.copyfile(CONFIG_EXAMPLE_PATH, CONFIG_PATH)
+        return
+
+    with open(CONFIG_PATH, "w", encoding="utf-8") as file:
+        json.dump({}, file, indent=2)
+
+
+def _read_config() -> dict:
+    """
+    Read config.json with a safe empty fallback.
+
+    Returns:
+        config (dict): Parsed configuration
+    """
+    ensure_config_file()
+
+    with open(CONFIG_PATH, "r", encoding="utf-8") as file:
+        parsed = json.load(file)
+
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def _merge_dict(base: dict, updates: dict) -> dict:
+    merged = dict(base)
+
+    for key, value in updates.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _merge_dict(merged[key], value)
+        else:
+            merged[key] = value
+
+    return merged
+
+
+def get_full_config() -> dict:
+    """
+    Return the full parsed config payload.
+
+    Returns:
+        config (dict): Parsed configuration
+    """
+    return _read_config()
+
+
+def update_config(updates: dict) -> dict:
+    """
+    Deep-merge updates into config.json and persist them.
+
+    Args:
+        updates (dict): Partial config update
+
+    Returns:
+        config (dict): Persisted configuration
+    """
+    current = _read_config()
+    merged = _merge_dict(current, updates or {})
+
+    with open(CONFIG_PATH, "w", encoding="utf-8") as file:
+        json.dump(merged, file, indent=2)
+
+    return merged
 
 def assert_folder_structure() -> None:
     """
@@ -76,8 +161,7 @@ def get_ollama_base_url() -> str:
     Returns:
         url (str): The Ollama base URL
     """
-    with open(os.path.join(ROOT_DIR, "config.json"), "r") as file:
-        return json.load(file).get("ollama_base_url", "http://127.0.0.1:11434")
+    return str(_read_config().get("ollama_base_url", "http://127.0.0.1:11434")).strip() or "http://127.0.0.1:11434"
 
 def get_ollama_model() -> str:
     """
@@ -86,8 +170,134 @@ def get_ollama_model() -> str:
     Returns:
         model (str): The Ollama model name, or empty string if not set.
     """
-    with open(os.path.join(ROOT_DIR, "config.json"), "r") as file:
-        return json.load(file).get("ollama_model", "")
+    return str(_read_config().get("ollama_model", "")).strip()
+
+
+def get_llm_provider() -> str:
+    """
+    Gets the active LLM provider.
+
+    Returns:
+        provider (str): Provider identifier
+    """
+    supported_providers = {"ollama", "lmstudio", "openai", "gemini"}
+    provider = str(_read_config().get("llm_provider", "ollama")).strip().lower()
+    return provider if provider in supported_providers else "ollama"
+
+
+def get_llm_model() -> str:
+    """
+    Gets the active model name for the selected provider.
+
+    Returns:
+        model (str): Model identifier
+    """
+    config_json = _read_config()
+    generic_model = str(config_json.get("llm_model", "")).strip()
+    if generic_model:
+        return generic_model
+
+    provider = get_llm_provider()
+    if provider == "ollama":
+        return get_ollama_model()
+    if provider in {"lmstudio", "openai"}:
+        return get_openai_model()
+    if provider == "gemini":
+        return get_gemini_model()
+
+    return ""
+
+
+def get_openai_base_url() -> str:
+    """
+    Gets the OpenAI-compatible base URL.
+
+    Returns:
+        base_url (str): Base URL
+    """
+    config_json = _read_config()
+    configured = str(
+        config_json.get("openai_base_url", os.environ.get("OPENAI_BASE_URL", ""))
+    ).strip()
+
+    if configured:
+        return configured
+
+    if get_llm_provider() == "lmstudio":
+        return "http://127.0.0.1:1234/v1"
+
+    return "https://api.openai.com/v1"
+
+
+def get_openai_api_key() -> str:
+    """
+    Gets the OpenAI-compatible API key.
+
+    Returns:
+        api_key (str): API key or local placeholder for LM Studio
+    """
+    config_json = _read_config()
+    configured = str(
+        config_json.get("openai_api_key", os.environ.get("OPENAI_API_KEY", ""))
+    ).strip()
+
+    if configured:
+        return configured
+
+    if get_llm_provider() == "lmstudio":
+        return "lm-studio"
+
+    return ""
+
+
+def get_openai_model() -> str:
+    """
+    Gets the OpenAI-compatible model name.
+
+    Returns:
+        model (str): Model name
+    """
+    config_json = _read_config()
+    return str(config_json.get("openai_model", "")).strip()
+
+
+def get_gemini_api_base_url() -> str:
+    """
+    Gets the Gemini text API base URL.
+
+    Returns:
+        base_url (str): Base URL
+    """
+    config_json = _read_config()
+    return str(
+        config_json.get(
+            "gemini_api_base_url",
+            "https://generativelanguage.googleapis.com/v1beta",
+        )
+    ).strip()
+
+
+def get_gemini_api_key() -> str:
+    """
+    Gets the Gemini API key.
+
+    Returns:
+        api_key (str): Gemini API key
+    """
+    config_json = _read_config()
+    configured = str(config_json.get("gemini_api_key", "")).strip()
+    return configured or os.environ.get("GEMINI_API_KEY", "").strip()
+
+
+def get_gemini_model() -> str:
+    """
+    Gets the Gemini model name.
+
+    Returns:
+        model (str): Gemini model
+    """
+    config_json = _read_config()
+    return str(config_json.get("gemini_model", "gemini-2.5-flash")).strip() or "gemini-2.5-flash"
 
 def get_twitter_language() -> str:
     """
@@ -294,6 +504,9 @@ def equalize_subtitles(srt_path: str, max_chars: int = 10) -> None:
     Returns:
         None
     """
+    if srt_equalizer is None:
+        return
+
     srt_equalizer.equalize_srt_file(srt_path, srt_path, max_chars)
     
 def get_font() -> str:
@@ -333,12 +546,11 @@ def get_script_sentence_length() -> int:
     Returns:
         length (int): Length of script's sentence
     """
-    with open(os.path.join(ROOT_DIR, "config.json"), "r") as file:
-        config_json = json.load(file)
-        if (config_json.get("script_sentence_length") is not None):
-            return config_json["script_sentence_length"]
-        else:
-            return 4
+    config_json = _read_config()
+    if config_json.get("script_sentence_length") is not None:
+        return config_json["script_sentence_length"]
+
+    return 4
 
 def get_post_bridge_config() -> dict:
     """
@@ -403,3 +615,86 @@ def get_post_bridge_config() -> dict:
             raw_config.get("auto_crosspost", defaults["auto_crosspost"])
         ),
     }
+
+
+def get_cardnews_config() -> dict:
+    """
+    Gets the CardNews configuration with safe defaults.
+
+    Returns:
+        config (dict): Sanitized CardNews configuration
+    """
+    defaults = {
+        "slides_per_post": 6,
+        "review_required": True,
+        "default_channels": ["instagram"],
+        "render_width": 1080,
+        "render_height": 1350,
+    }
+    supported_channels = {"instagram", "tiktok"}
+
+    raw_config = _read_config().get("cardnews", {})
+    if not isinstance(raw_config, dict):
+        raw_config = {}
+
+    raw_channels = raw_config.get("default_channels", defaults["default_channels"])
+    normalized_channels = []
+    if isinstance(raw_channels, list):
+        for channel in raw_channels:
+            normalized = str(channel).strip().lower()
+            if normalized in supported_channels and normalized not in normalized_channels:
+                normalized_channels.append(normalized)
+
+    if not normalized_channels:
+        normalized_channels = defaults["default_channels"].copy()
+
+    try:
+        slides_per_post = int(raw_config.get("slides_per_post", defaults["slides_per_post"]))
+    except (TypeError, ValueError):
+        slides_per_post = defaults["slides_per_post"]
+
+    try:
+        render_width = int(raw_config.get("render_width", defaults["render_width"]))
+        render_height = int(raw_config.get("render_height", defaults["render_height"]))
+    except (TypeError, ValueError):
+        render_width = defaults["render_width"]
+        render_height = defaults["render_height"]
+
+    return {
+        "slides_per_post": max(3, min(slides_per_post, 12)),
+        "review_required": bool(raw_config.get("review_required", defaults["review_required"])),
+        "default_channels": normalized_channels,
+        "render_width": max(720, render_width),
+        "render_height": max(720, render_height),
+    }
+
+
+def get_dashboard_host() -> str:
+    """
+    Gets the dashboard host binding.
+
+    Returns:
+        host (str): Hostname or IP
+    """
+    dashboard_config = _read_config().get("dashboard", {})
+    if not isinstance(dashboard_config, dict):
+        dashboard_config = {}
+
+    return str(dashboard_config.get("host", "127.0.0.1")).strip() or "127.0.0.1"
+
+
+def get_dashboard_port() -> int:
+    """
+    Gets the dashboard port.
+
+    Returns:
+        port (int): Dashboard port
+    """
+    dashboard_config = _read_config().get("dashboard", {})
+    if not isinstance(dashboard_config, dict):
+        dashboard_config = {}
+
+    try:
+        return int(dashboard_config.get("port", 5000))
+    except (TypeError, ValueError):
+        return 5000

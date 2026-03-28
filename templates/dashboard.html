@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MoneyPrinter Dashboard</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: "Helvetica Neue", Arial, sans-serif;
+      background: #0b1020;
+      color: #e7ecf5;
+    }
+    .page {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 20px 64px;
+    }
+    h1, h2, h3, p {
+      margin-top: 0;
+    }
+    .hero {
+      padding: 28px;
+      border-radius: 24px;
+      background: linear-gradient(135deg, #13315c, #0b6e4f);
+      margin-bottom: 24px;
+    }
+    .notice, .error {
+      padding: 12px 16px;
+      border-radius: 14px;
+      margin-bottom: 18px;
+    }
+    .notice { background: rgba(76, 175, 80, 0.18); }
+    .error { background: rgba(229, 57, 53, 0.18); }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+    .card {
+      background: #141b2d;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 22px;
+      padding: 20px;
+    }
+    label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 6px;
+      color: #b2bfd2;
+    }
+    input, textarea {
+      width: 100%;
+      box-sizing: border-box;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: #0f1525;
+      color: #ffffff;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+    }
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 10px 14px;
+      background: #53b3cb;
+      color: #08111f;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button.secondary {
+      background: #22304a;
+      color: #dbe6f5;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    th, td {
+      text-align: left;
+      padding: 10px 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      vertical-align: top;
+    }
+    .pill {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.08);
+      font-size: 12px;
+      margin-right: 6px;
+      margin-bottom: 6px;
+    }
+    .drafts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 18px;
+    }
+    .draft-card {
+      background: #10192c;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 22px;
+      padding: 18px;
+    }
+    .draft-preview-hero {
+      width: 100%;
+      aspect-ratio: 4 / 5;
+      object-fit: cover;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.1);
+      display: block;
+      background: #0b1020;
+      margin-bottom: 12px;
+    }
+    .preview-rail {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 6px;
+      margin-bottom: 12px;
+    }
+    .preview-thumb {
+      width: 88px;
+      min-width: 88px;
+      aspect-ratio: 4 / 5;
+      object-fit: cover;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: #0b1020;
+      cursor: pointer;
+    }
+    .draft-meta {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin: 12px 0;
+      font-size: 13px;
+      color: #b8c4d9;
+    }
+    .draft-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+    .actions form {
+      margin-bottom: 8px;
+    }
+    .viewer-trigger {
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      padding: 0;
+    }
+    .link-button {
+      background: #22304a;
+      color: #dbe6f5;
+    }
+    .viewer-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(4, 8, 15, 0.88);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 24px;
+    }
+    .viewer-modal.is-open {
+      display: flex;
+    }
+    .viewer-panel {
+      width: min(1180px, 100%);
+      max-height: calc(100vh - 48px);
+      background: #0e1728;
+      border-radius: 24px;
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 18px;
+      overflow: hidden;
+    }
+    .viewer-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .viewer-stage {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 220px;
+      gap: 16px;
+      align-items: start;
+    }
+    .viewer-main {
+      background: #09101d;
+      border-radius: 20px;
+      padding: 14px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 70vh;
+    }
+    .viewer-main img {
+      max-width: 100%;
+      max-height: calc(70vh - 28px);
+      border-radius: 18px;
+      object-fit: contain;
+    }
+    .viewer-sidebar {
+      overflow-y: auto;
+      max-height: 70vh;
+      padding-right: 4px;
+    }
+    .viewer-sidebar button {
+      width: 100%;
+      background: transparent;
+      padding: 0;
+      margin-bottom: 10px;
+    }
+    .viewer-sidebar img {
+      width: 100%;
+      aspect-ratio: 4 / 5;
+      object-fit: cover;
+      border-radius: 14px;
+      border: 2px solid transparent;
+    }
+    .viewer-sidebar button.is-active img {
+      border-color: #53b3cb;
+    }
+    @media (max-width: 900px) {
+      .viewer-stage {
+        grid-template-columns: 1fr;
+      }
+      .viewer-sidebar {
+        display: flex;
+        gap: 10px;
+        max-height: none;
+        overflow-x: auto;
+        overflow-y: hidden;
+      }
+      .viewer-sidebar button {
+        min-width: 120px;
+        margin-bottom: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <h1>MoneyPrinter Dashboard</h1>
+      <p>CardNews generation, review and publish flow is now available alongside the existing account overview.</p>
+      <div>
+        <span class="pill">YouTube accounts: {{ state.youtube_accounts|length }}</span>
+        <span class="pill">CardNews profiles: {{ state.cardnews_profiles|length }}</span>
+        <span class="pill">Drafts: {{ state.cardnews_drafts|length }}</span>
+        <span class="pill">LLM: {{ state.llm.provider }}{% if state.llm.active_model %} · {{ state.llm.active_model }}{% endif %}</span>
+      </div>
+    </section>
+
+    {% if notice %}
+      <div class="notice">{{ notice }}</div>
+    {% endif %}
+    {% if error %}
+      <div class="error">{{ error }}</div>
+    {% endif %}
+
+    <section class="grid">
+      <div class="card">
+        <h2>Settings</h2>
+        <form method="post" action="/settings/save">
+          <label>LLM Provider</label>
+          <select name="llm_provider" style="width:100%;margin-bottom:12px;padding:10px;border-radius:12px;background:#0f1525;color:#fff;border:1px solid rgba(255,255,255,0.15);">
+            {% for provider in state.llm.provider_options %}
+              <option value="{{ provider }}" {% if state.config.get('llm_provider', 'ollama') == provider %}selected{% endif %}>{{ provider }}</option>
+            {% endfor %}
+          </select>
+
+          <label>LLM Model</label>
+          <input name="llm_model" value="{{ state.config.get('llm_model', '') or state.config.get('openai_model', '') or state.config.get('ollama_model', '') or state.config.get('gemini_model', '') }}" placeholder="qwen/qwen3-30b-a3b-2507">
+
+          <label>Ollama Base URL</label>
+          <input name="ollama_base_url" value="{{ state.config.get('ollama_base_url', 'http://127.0.0.1:11434') }}">
+
+          <label>OpenAI / LM Studio Base URL</label>
+          <input name="openai_base_url" value="{{ state.config.get('openai_base_url', 'http://127.0.0.1:1234/v1') }}">
+
+          <label>OpenAI API Key</label>
+          <input name="openai_api_key" type="password" placeholder="{% if state.config.get('openai_api_key') %}Leave blank to keep current key{% else %}Set API key or LM Studio placeholder{% endif %}">
+
+          <label>Gemini Model</label>
+          <input name="gemini_model" value="{{ state.config.get('gemini_model', 'gemini-2.5-flash') }}">
+
+          <label>Gemini API Key</label>
+          <input name="gemini_api_key" type="password" placeholder="{% if state.config.get('gemini_api_key') %}Leave blank to keep current key{% else %}Set Gemini API key{% endif %}">
+
+          <label>Slides Per Post</label>
+          <input name="slides_per_post" value="{{ state.cardnews_defaults.slides_per_post }}">
+
+          <label>Default Channels (comma separated)</label>
+          <input name="default_channels" value="{{ state.cardnews_defaults.default_channels|join(', ') }}">
+
+          <label>
+            <input type="checkbox" name="review_required" {% if state.cardnews_defaults.review_required %}checked{% endif %}>
+            Review Required
+          </label>
+
+          <label>
+            <input type="checkbox" name="post_bridge_enabled" {% if state.config.get('post_bridge', {}).get('enabled') %}checked{% endif %}>
+            Post Bridge Enabled
+          </label>
+
+          <label>
+            <input type="checkbox" name="post_bridge_auto_crosspost" {% if state.config.get('post_bridge', {}).get('auto_crosspost') %}checked{% endif %}>
+            Auto Crosspost
+          </label>
+
+          <button type="submit">Save Settings</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>Create CardNews Profile</h2>
+        <form method="post" action="/accounts/cardnews/save">
+          <label>Nickname</label>
+          <input name="nickname" placeholder="Finance KR">
+
+          <label>Niche</label>
+          <input name="niche" placeholder="budgeting for young professionals">
+
+          <label>Language</label>
+          <input name="language" value="Korean">
+
+          <label>Channels</label>
+          <input name="channels" value="{{ state.cardnews_defaults.default_channels|join(', ') }}">
+
+          <button type="submit">Save Profile</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>Generate Draft</h2>
+        <form method="post" action="/cardnews/generate">
+          <label>Profile</label>
+          <select name="profile_id" style="width:100%;margin-bottom:12px;padding:10px;border-radius:12px;background:#0f1525;color:#fff;border:1px solid rgba(255,255,255,0.15);">
+            {% for profile in state.cardnews_profiles %}
+              <option value="{{ profile.id }}">{{ profile.nickname }} · {{ profile.niche }}</option>
+            {% endfor %}
+          </select>
+
+          <label>Topic Override</label>
+          <textarea name="topic_override" rows="4" placeholder="Leave blank to auto-generate a topic"></textarea>
+          <button type="submit">Generate Draft</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="card" style="margin-bottom:18px;">
+      <h2>CardNews Profiles</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Nickname</th>
+            <th>Niche</th>
+            <th>Language</th>
+            <th>Channels</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for profile in state.cardnews_profiles %}
+            <tr>
+              <td>{{ profile.nickname }}</td>
+              <td>{{ profile.niche }}</td>
+              <td>{{ profile.language }}</td>
+              <td>{{ profile.channels|join(', ') }}</td>
+              <td>
+                <form method="post" action="/accounts/cardnews/delete">
+                  <input type="hidden" name="profile_id" value="{{ profile.id }}">
+                  <button class="secondary" type="submit">Delete</button>
+                </form>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="5">No CardNews profiles yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card" style="margin-bottom:18px;">
+      <h2>CardNews Drafts</h2>
+      <div class="drafts-grid">
+        {% for draft in state.cardnews_drafts %}
+          {% set previews = preview_map.get(draft.id, []) %}
+          {% set slide_urls = [] %}
+          {% for file_name in previews %}
+            {% set _ = slide_urls.append('/artifacts/' ~ draft.id ~ '/' ~ file_name) %}
+          {% endfor %}
+          <article class="draft-card">
+            {% if slide_urls %}
+              <button
+                type="button"
+                class="viewer-trigger"
+                data-topic="{{ draft.topic }}"
+                data-slides='{{ slide_urls|tojson|safe }}'
+                onclick="openViewer(this)"
+              >
+                <img class="draft-preview-hero" src="{{ slide_urls[0] }}" alt="{{ draft.topic }}">
+              </button>
+              <div class="preview-rail">
+                {% for slide_url in slide_urls %}
+                  <img
+                    class="preview-thumb"
+                    src="{{ slide_url }}"
+                    alt="Slide {{ loop.index }}"
+                    data-index="{{ loop.index0 }}"
+                    data-topic="{{ draft.topic }}"
+                    data-slides='{{ slide_urls|tojson|safe }}'
+                    onclick="openViewer(this, {{ loop.index0 }})"
+                  >
+                {% endfor %}
+              </div>
+            {% else %}
+              <div class="draft-preview-hero" style="display:flex;align-items:center;justify-content:center;color:#9fb3c8;">No preview</div>
+            {% endif %}
+
+            <h3>{{ draft.topic }}</h3>
+            <div>
+              <span class="pill">{{ draft.status }}</span>
+              <span class="pill">{{ draft.review.status }}</span>
+              {% for channel in draft.channels %}
+                <span class="pill">{{ channel }}</span>
+              {% endfor %}
+            </div>
+            <div class="draft-meta">
+              <div>Created<br><strong>{{ draft.created_at }}</strong></div>
+              <div>Slides<br><strong>{{ previews|length }}</strong></div>
+            </div>
+            <p style="color:#b8c4d9;">{{ draft.review.summary }}</p>
+            <div class="draft-actions">
+              {% if slide_urls %}
+                <button
+                  type="button"
+                  class="link-button"
+                  data-topic="{{ draft.topic }}"
+                  data-slides='{{ slide_urls|tojson|safe }}'
+                  onclick="openViewer(this)"
+                >Open Deck</button>
+              {% endif %}
+              <form method="post" action="/cardnews/approve">
+                <input type="hidden" name="draft_id" value="{{ draft.id }}">
+                <button class="secondary" type="submit">Approve</button>
+              </form>
+              <form method="post" action="/cardnews/publish">
+                <input type="hidden" name="draft_id" value="{{ draft.id }}">
+                <button type="submit">Publish</button>
+              </form>
+            </div>
+          </article>
+        {% else %}
+          <div>No CardNews drafts yet.</div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>YouTube Accounts</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Nickname</th>
+            <th>Niche</th>
+            <th>Language</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for account in state.youtube_accounts %}
+            <tr>
+              <td>{{ account.nickname }}</td>
+              <td>{{ account.niche }}</td>
+              <td>{{ account.language }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="3">No YouTube accounts configured.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </div>
+  <div id="viewerModal" class="viewer-modal" onclick="closeViewer(event)">
+    <div class="viewer-panel" onclick="event.stopPropagation()">
+      <div class="viewer-header">
+        <div>
+          <h2 id="viewerTitle" style="margin-bottom:4px;">CardNews Preview</h2>
+          <p id="viewerCount" style="margin:0;color:#9fb3c8;"></p>
+        </div>
+        <button type="button" class="secondary" onclick="closeViewer()">Close</button>
+      </div>
+      <div class="viewer-stage">
+        <div class="viewer-main">
+          <img id="viewerImage" src="" alt="CardNews preview">
+        </div>
+        <div id="viewerSidebar" class="viewer-sidebar"></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    let viewerSlides = [];
+    let viewerIndex = 0;
+
+    function renderViewer() {
+      const viewerImage = document.getElementById("viewerImage");
+      const viewerCount = document.getElementById("viewerCount");
+      const viewerSidebar = document.getElementById("viewerSidebar");
+      viewerImage.src = viewerSlides[viewerIndex] || "";
+      viewerCount.textContent = viewerSlides.length ? `Slide ${viewerIndex + 1} / ${viewerSlides.length}` : "";
+      viewerSidebar.innerHTML = "";
+
+      viewerSlides.forEach((slide, index) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        if (index === viewerIndex) {
+          button.classList.add("is-active");
+        }
+        button.onclick = () => {
+          viewerIndex = index;
+          renderViewer();
+        };
+
+        const image = document.createElement("img");
+        image.src = slide;
+        image.alt = `Slide ${index + 1}`;
+        button.appendChild(image);
+        viewerSidebar.appendChild(button);
+      });
+    }
+
+    function openViewer(element, index = 0) {
+      const slides = JSON.parse(element.dataset.slides || "[]");
+      if (!slides.length) return;
+      viewerSlides = slides;
+      viewerIndex = index;
+      document.getElementById("viewerTitle").textContent = element.dataset.topic || "CardNews Preview";
+      document.getElementById("viewerModal").classList.add("is-open");
+      document.body.style.overflow = "hidden";
+      renderViewer();
+    }
+
+    function closeViewer(event) {
+      if (event && event.target && event.target !== document.getElementById("viewerModal")) {
+        return;
+      }
+      document.getElementById("viewerModal").classList.remove("is-open");
+      document.body.style.overflow = "";
+    }
+
+    document.addEventListener("keydown", (event) => {
+      const modal = document.getElementById("viewerModal");
+      if (!modal.classList.contains("is-open")) return;
+
+      if (event.key === "Escape") {
+        closeViewer();
+      }
+      if (event.key === "ArrowRight" && viewerIndex < viewerSlides.length - 1) {
+        viewerIndex += 1;
+        renderViewer();
+      }
+      if (event.key === "ArrowLeft" && viewerIndex > 0) {
+        viewerIndex -= 1;
+        renderViewer();
+      }
+    });
+  </script>
+</body>
+</html>

@@ -3,11 +3,15 @@ import sys
 
 from status import *
 from cache import get_accounts
+from config import get_llm_provider
 from config import get_verbose
+from config import ensure_config_file
+from config import get_cardnews_config
 from classes.Tts import TTS
 from classes.Twitter import Twitter
 from classes.YouTube import YouTube
-from llm_provider import select_model
+from classes.CardNews import CardNews
+from llm_provider import select_provider_model
 from post_bridge_integration import maybe_crosspost_youtube_short
 
 def main():
@@ -32,10 +36,12 @@ def main():
     account_id = str(sys.argv[2])
     model = str(sys.argv[3]) if len(sys.argv) > 3 else None
 
+    ensure_config_file()
+
     if model:
-        select_model(model)
+        select_provider_model(get_llm_provider(), model)
     else:
-        error("No Ollama model specified. Pass model name as third argument.")
+        error("No model specified. Pass model name as third argument.")
         sys.exit(1)
 
     verbose = get_verbose()
@@ -91,6 +97,31 @@ def main():
                     )
                 else:
                     warning("YouTube upload failed. Skipping Post Bridge cross-post.")
+                break
+    elif purpose == "cardnews":
+        profiles = get_accounts("cardnews")
+        review_required = get_cardnews_config()["review_required"]
+
+        if not account_id:
+            error("CardNews profile UUID cannot be empty.")
+
+        for profile in profiles:
+            if profile["id"] == account_id:
+                if verbose:
+                    info("Initializing CardNews...")
+                studio = CardNews(profile)
+                draft = studio.prepare_draft()
+
+                if review_required:
+                    warning(
+                        "CardNews review_required is enabled. Draft generated and rendered, but not auto-published."
+                    )
+                    break
+
+                studio.approve_draft(draft["id"])
+                studio.publish_draft(draft["id"], interactive=False)
+                if verbose:
+                    success("Published CardNews draft.")
                 break
     else:
         error("Invalid Purpose, exiting...")

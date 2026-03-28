@@ -1,4 +1,8 @@
-from termcolor import colored
+try:
+    from termcolor import colored
+except ModuleNotFoundError:  # pragma: no cover - fallback for minimal test envs
+    def colored(message: str, *_args, **_kwargs) -> str:
+        return str(message)
 
 def error(message: str, show_emoji: bool = True) -> None:
     """

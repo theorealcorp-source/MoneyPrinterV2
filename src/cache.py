@@ -4,6 +4,12 @@ import json
 from typing import List
 from config import ROOT_DIR
 
+PROVIDER_CACHE_FILES = {
+    "twitter": "twitter.json",
+    "youtube": "youtube.json",
+    "cardnews": "cardnews_accounts.json",
+}
+
 def get_cache_path() -> str:
     """
     Gets the path to the cache file.
@@ -53,12 +59,12 @@ def get_provider_cache_path(provider: str) -> str:
     Raises:
         ValueError: If the provider is unsupported
     """
-    if provider == "twitter":
-        return get_twitter_cache_path()
-    if provider == "youtube":
-        return get_youtube_cache_path()
+    if provider in PROVIDER_CACHE_FILES:
+        return os.path.join(get_cache_path(), PROVIDER_CACHE_FILES[provider])
 
-    raise ValueError(f"Unsupported provider '{provider}'. Expected 'twitter' or 'youtube'.")
+    raise ValueError(
+        f"Unsupported provider '{provider}'. Expected one of {sorted(PROVIDER_CACHE_FILES)}."
+    )
 
 def get_accounts(provider: str) -> List[dict]:
     """
@@ -115,6 +121,34 @@ def add_account(provider: str, account: dict) -> None:
         json.dump({
             "accounts": accounts
         }, file, indent=4)
+
+
+def update_account(provider: str, account_id: str, updates: dict) -> dict | None:
+    """
+    Updates an existing account payload by id.
+
+    Args:
+        provider (str): Provider bucket
+        account_id (str): Account identifier
+        updates (dict): Partial update payload
+
+    Returns:
+        account (dict | None): Updated account or None when not found
+    """
+    accounts = get_accounts(provider)
+    updated_account = None
+
+    for account in accounts:
+        if account.get("id") == account_id:
+            account.update(updates or {})
+            updated_account = account
+            break
+
+    cache_path = get_provider_cache_path(provider)
+    with open(cache_path, "w", encoding="utf-8") as file:
+        json.dump({"accounts": accounts}, file, indent=4)
+
+    return updated_account
 
 def remove_account(provider: str, account_id: str) -> None:
     """
@@ -191,3 +225,107 @@ def get_results_cache_path() -> str:
         path (str): The path to the results cache folder
     """
     return os.path.join(get_cache_path(), 'scraper_results.csv')
+
+
+def get_cardnews_cache_path() -> str:
+    """
+    Gets the path to the CardNews draft cache file.
+
+    Returns:
+        path (str): CardNews cache path
+    """
+    return os.path.join(get_cache_path(), "cardnews.json")
+
+
+def get_cardnews_drafts() -> List[dict]:
+    """
+    Gets all CardNews drafts.
+
+    Returns:
+        drafts (List[dict]): Stored drafts
+    """
+    cache_path = get_cardnews_cache_path()
+
+    if not os.path.exists(cache_path):
+        with open(cache_path, "w", encoding="utf-8") as file:
+            json.dump({"drafts": []}, file, indent=4)
+
+    with open(cache_path, "r", encoding="utf-8") as file:
+        parsed = json.load(file)
+
+    drafts = parsed.get("drafts", [])
+    return drafts if isinstance(drafts, list) else []
+
+
+def get_cardnews_drafts_for_profile(profile_id: str) -> List[dict]:
+    """
+    Gets drafts belonging to a single CardNews profile.
+
+    Args:
+        profile_id (str): CardNews profile id
+
+    Returns:
+        drafts (List[dict]): Matching drafts newest first
+    """
+    drafts = [draft for draft in get_cardnews_drafts() if draft.get("profile_id") == profile_id]
+    return sorted(drafts, key=lambda draft: str(draft.get("created_at", "")), reverse=True)
+
+
+def get_cardnews_draft(draft_id: str) -> dict | None:
+    """
+    Gets a CardNews draft by id.
+
+    Args:
+        draft_id (str): Draft identifier
+
+    Returns:
+        draft (dict | None): Matching draft if found
+    """
+    for draft in get_cardnews_drafts():
+        if draft.get("id") == draft_id:
+            return draft
+
+    return None
+
+
+def add_cardnews_draft(draft: dict) -> None:
+    """
+    Adds a CardNews draft to cache.
+
+    Args:
+        draft (dict): Draft payload
+
+    Returns:
+        None
+    """
+    drafts = get_cardnews_drafts()
+    drafts.append(draft)
+
+    with open(get_cardnews_cache_path(), "w", encoding="utf-8") as file:
+        json.dump({"drafts": drafts}, file, indent=4)
+
+
+def update_cardnews_draft(draft_id: str, updates: dict) -> dict | None:
+    """
+    Updates a CardNews draft by id.
+
+    Args:
+        draft_id (str): Draft identifier
+        updates (dict): Partial draft update
+
+    Returns:
+        draft (dict | None): Updated draft if found
+    """
+    drafts = get_cardnews_drafts()
+    updated_draft = None
+
+    for draft in drafts:
+        if draft.get("id") == draft_id:
+            draft.update(updates or {})
+            updated_draft = draft
+            break
+
+    with open(get_cardnews_cache_path(), "w", encoding="utf-8") as file:
+        json.dump({"drafts": drafts}, file, indent=4)
+
+    return updated_draft

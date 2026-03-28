@@ -123,6 +123,117 @@ def build_platform_configurations(title: str) -> dict:
     }
 
 
+def _publish_media_assets(
+    media_paths: list[str],
+    caption: str,
+    interactive: bool,
+    prompt_fn: Optional[Callable[[str], str]] = None,
+    platforms: Optional[list[str]] = None,
+    platform_configurations: Optional[dict] = None,
+    processing_enabled: bool = True,
+    force_publish: bool = False,
+) -> Optional[bool]:
+    """
+    Shared Post Bridge publishing helper for image/video assets.
+    """
+    config = get_post_bridge_config()
+
+    if not config["enabled"]:
+        return None
+
+    if not config["api_key"]:
+        warning(
+            "Post Bridge is enabled but no API key is configured. "
+            "Set post_bridge.api_key or POST_BRIDGE_API_KEY."
+        )
+        return None
+
+    valid_media_paths = []
+    for media_path in media_paths:
+        if not os.path.exists(media_path):
+            warning(f"Cannot publish missing asset: {media_path}")
+            return False
+        valid_media_paths.append(media_path)
+
+    if not valid_media_paths:
+        warning("No media assets were provided for publishing.")
+        return None
+
+    configured_platforms = config["platforms"]
+    selected_platforms = []
+    for platform in platforms or configured_platforms:
+        normalized_platform = str(platform).strip().lower()
+        if normalized_platform in configured_platforms and normalized_platform not in selected_platforms:
+            selected_platforms.append(normalized_platform)
+
+    if not selected_platforms:
+        selected_platforms = configured_platforms
+
+    configured_account_ids = config["account_ids"]
+    if not selected_platforms and not configured_account_ids:
+        warning("Post Bridge is enabled but no supported platforms are configured.")
+        return None
+
+    if prompt_fn is None:
+        prompt_fn = question
+
+    if force_publish:
+        should_publish = True
+    elif interactive:
+        should_publish = config["auto_crosspost"]
+        if not should_publish:
+            platform_label = ", ".join(selected_platforms) if selected_platforms else "configured Post Bridge accounts"
+            response = prompt_fn(
+                f"Publish this asset set to {platform_label} via Post Bridge? (Yes/No): "
+            ).strip().lower()
+            should_publish = response in {"y", "yes"}
+    else:
+        if not config["auto_crosspost"]:
+            info(
+                "Post Bridge is enabled, but auto_crosspost is disabled. "
+                "Skipping automated publish."
+            )
+            return None
+        should_publish = True
+
+    if not should_publish:
+        return None
+
+    client = PostBridge(config["api_key"])
+
+    try:
+        account_ids = resolve_social_account_ids(
+            client=client,
+            configured_account_ids=configured_account_ids,
+            platforms=selected_platforms,
+            interactive=interactive,
+            prompt_fn=prompt_fn,
+        )
+        if not account_ids:
+            warning("No Post Bridge accounts were resolved. Skipping publish.")
+            return None
+
+        media_ids = [client.upload_media(media_path) for media_path in valid_media_paths]
+        create_post_kwargs = {
+            "caption": caption,
+            "social_account_ids": account_ids,
+            "media_ids": media_ids,
+            "platform_configurations": platform_configurations,
+        }
+        if not processing_enabled:
+            create_post_kwargs["processing_enabled"] = False
+
+        result = client.create_post(**create_post_kwargs)
+
+        success(f"Published via Post Bridge (post ID: {result.get('id', 'unknown')}).")
+        for warning_message in result.get("warnings", []):
+            warning(f"Post Bridge warning: {warning_message}")
+        return True
+    except PostBridgeClientError as exc:
+        warning(f"Post Bridge publish failed: {exc}")
+        return False
+
+
 def maybe_crosspost_youtube_short(
     video_path: str,
     title: str,
@@ -142,81 +253,38 @@ def maybe_crosspost_youtube_short(
         result (bool | None): True when posted, False when attempted and failed,
             None when skipped.
     """
-    config = get_post_bridge_config()
-
-    if not config["enabled"]:
-        return None
-
-    if not config["api_key"]:
-        warning(
-            "Post Bridge is enabled but no API key is configured. "
-            "Set post_bridge.api_key or POST_BRIDGE_API_KEY."
-        )
-        return None
-
-    if not os.path.exists(video_path):
-        warning(f"Cannot cross-post because the video file was not found: {video_path}")
-        return False
-
-    platforms = config["platforms"]
-    configured_account_ids = config["account_ids"]
-    if not platforms and not configured_account_ids:
-        warning("Post Bridge is enabled but no supported platforms are configured.")
-        return None
-
-    if prompt_fn is None:
-        prompt_fn = question
-
-    if interactive:
-        should_crosspost = config["auto_crosspost"]
-        if not should_crosspost:
-            platform_label = ", ".join(platforms) if platforms else "configured Post Bridge accounts"
-            response = prompt_fn(
-                f"Cross-post this video to {platform_label} via Post Bridge? (Yes/No): "
-            ).strip().lower()
-            should_crosspost = response in {"y", "yes"}
-    else:
-        if not config["auto_crosspost"]:
-            info(
-                "Post Bridge is enabled, but auto_crosspost is disabled. "
-                "Skipping cross-post in cron mode."
-            )
-            return None
-        should_crosspost = True
-
-    if not should_crosspost:
-        return None
-
     post_caption = title.strip()
     if not post_caption:
         post_caption = os.path.splitext(os.path.basename(video_path))[0]
 
-    client = PostBridge(config["api_key"])
+    return _publish_media_assets(
+        media_paths=[video_path],
+        caption=post_caption,
+        interactive=interactive,
+        prompt_fn=prompt_fn,
+        platform_configurations=build_platform_configurations(title),
+        processing_enabled=True,
+    )
 
-    try:
-        account_ids = resolve_social_account_ids(
-            client=client,
-            configured_account_ids=configured_account_ids,
-            platforms=platforms,
-            interactive=interactive,
-            prompt_fn=prompt_fn,
-        )
-        if not account_ids:
-            warning("No Post Bridge accounts were resolved. Skipping cross-post.")
-            return None
 
-        media_id = client.upload_media(video_path)
-        result = client.create_post(
-            caption=post_caption,
-            social_account_ids=account_ids,
-            media_ids=[media_id],
-            platform_configurations=build_platform_configurations(title),
-        )
-
-        success(f"Cross-posted via Post Bridge (post ID: {result.get('id', 'unknown')}).")
-        for warning_message in result.get("warnings", []):
-            warning(f"Post Bridge warning: {warning_message}")
-        return True
-    except PostBridgeClientError as exc:
-        warning(f"Post Bridge cross-post failed: {exc}")
-        return False
+def publish_cardnews_images(
+    image_paths: list[str],
+    caption: str,
+    interactive: bool,
+    platforms: Optional[list[str]] = None,
+    prompt_fn: Optional[Callable[[str], str]] = None,
+    force_publish: bool = False,
+) -> Optional[bool]:
+    """
+    Publish one or more rendered card-news images through Post Bridge.
+    """
+    return _publish_media_assets(
+        media_paths=image_paths,
+        caption=caption,
+        interactive=interactive,
+        prompt_fn=prompt_fn,
+        platforms=platforms,
+        platform_configurations=None,
+        processing_enabled=False,
+        force_publish=force_publish,
+    )
