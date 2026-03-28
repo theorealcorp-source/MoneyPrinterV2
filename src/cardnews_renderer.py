@@ -77,6 +77,68 @@ CARDNEWS_THEMES = [
         "light_text": "#FCFDFF",
     },
 ]
+PUBLIC_SERVICE_THEMES = [
+    {
+        "name": "cream_sky",
+        "bg_start": "#F8F4EA",
+        "bg_end": "#F8F4EA",
+        "surface": "#FFFDF7",
+        "surface_alt": "#EAF3FF",
+        "accent": "#3C9EB8",
+        "accent_alt": "#F6A66F",
+        "text": "#1E4960",
+        "muted": "#6B7E8E",
+        "light_text": "#FFFFFF",
+    },
+    {
+        "name": "baby_blue",
+        "bg_start": "#DCEEFF",
+        "bg_end": "#DCEEFF",
+        "surface": "#F8FCFF",
+        "surface_alt": "#FFFFFF",
+        "accent": "#5277C8",
+        "accent_alt": "#F8B16E",
+        "text": "#244B7A",
+        "muted": "#667F9B",
+        "light_text": "#FFFFFF",
+    },
+    {
+        "name": "mint_cream",
+        "bg_start": "#EEF7E8",
+        "bg_end": "#EEF7E8",
+        "surface": "#FEFFF8",
+        "surface_alt": "#E1F2E2",
+        "accent": "#4AAE9B",
+        "accent_alt": "#F6B75C",
+        "text": "#2A5C58",
+        "muted": "#6D8078",
+        "light_text": "#FFFFFF",
+    },
+    {
+        "name": "warm_apricot",
+        "bg_start": "#F7E9D8",
+        "bg_end": "#F7E9D8",
+        "surface": "#FFF8EF",
+        "surface_alt": "#FFE6CF",
+        "accent": "#E56C4C",
+        "accent_alt": "#F4C04F",
+        "text": "#5B3F42",
+        "muted": "#8A7170",
+        "light_text": "#FFFFFF",
+    },
+    {
+        "name": "lilac",
+        "bg_start": "#EBDCF5",
+        "bg_end": "#EBDCF5",
+        "surface": "#FCF8FF",
+        "surface_alt": "#F3E5FF",
+        "accent": "#9B63D1",
+        "accent_alt": "#F2A6C8",
+        "text": "#513C73",
+        "muted": "#7D7091",
+        "light_text": "#FFFFFF",
+    },
+]
 
 SLIDE_TYPE_LABELS = {
     "cover": "SWIPE GUIDE",
@@ -530,9 +592,14 @@ def _add_background_motifs(canvas: Image.Image, theme: dict, slide_type: str, in
     return Image.alpha_composite(canvas.convert("RGBA"), overlay).convert("RGB")
 
 
-def _select_theme(deck_topic: str) -> dict:
+def _is_public_service_style(visual_style: str) -> bool:
+    return str(visual_style or "").strip().lower() == "public_service_flat"
+
+
+def _select_theme(deck_topic: str, visual_style: str = "editorial_abstract") -> dict:
     fingerprint = hashlib.sha256(str(deck_topic or "cardnews").encode("utf-8")).hexdigest()
-    return CARDNEWS_THEMES[int(fingerprint[:8], 16) % len(CARDNEWS_THEMES)]
+    themes = PUBLIC_SERVICE_THEMES if _is_public_service_style(visual_style) else CARDNEWS_THEMES
+    return themes[int(fingerprint[:8], 16) % len(themes)]
 
 
 def _prepare_canvas(width: int, height: int, theme: dict, slide: dict, index: int) -> Image.Image:
@@ -541,6 +608,157 @@ def _prepare_canvas(width: int, height: int, theme: dict, slide: dict, index: in
     if background is not None:
         canvas = Image.blend(canvas, background, alpha=0.30)
     return _add_background_motifs(canvas, theme, str(slide.get("type", "insight")), index)
+
+
+def _draw_brand_stamp(
+    draw: ImageDraw.ImageDraw,
+    width: int,
+    theme: dict,
+    brand_text: str = "CARDNEWS STUDIO",
+) -> None:
+    icon_x = width - 212
+    icon_y = 34
+    draw.ellipse((icon_x, icon_y, icon_x + 12, icon_y + 12), fill=theme["accent"])
+    draw.ellipse((icon_x + 10, icon_y - 3, icon_x + 24, icon_y + 11), fill=theme["accent_alt"])
+    draw.ellipse((icon_x + 22, icon_y, icon_x + 34, icon_y + 12), fill=theme["surface_alt"])
+    draw.text(
+        (icon_x + 42, icon_y - 6),
+        brand_text,
+        font=_load_font("body", 17, _contains_multilingual_text(brand_text)),
+        fill=theme["muted"],
+    )
+
+
+def _paste_ellipse_image(
+    canvas: Image.Image,
+    image_path: str,
+    box: tuple[int, int, int, int],
+) -> bool:
+    if not image_path or not os.path.exists(image_path):
+        return False
+
+    fitted = _fit_image_cover(
+        Image.open(image_path).convert("RGB"),
+        max(box[2] - box[0], 1),
+        max(box[3] - box[1], 1),
+    )
+    mask = Image.new("L", (fitted.width, fitted.height), 0)
+    mask_draw = ImageDraw.Draw(mask)
+    mask_draw.ellipse((0, 0, fitted.width, fitted.height), fill=255)
+    canvas.paste(fitted, (box[0], box[1]), mask)
+    return True
+
+
+def _draw_public_service_placeholder(
+    canvas: Image.Image,
+    box: tuple[int, int, int, int],
+    theme: dict,
+) -> None:
+    draw = ImageDraw.Draw(canvas)
+    draw.ellipse(box, fill=_color_with_alpha(theme["surface_alt"], 255))
+
+    width = box[2] - box[0]
+    height = box[3] - box[1]
+    face = (
+        box[0] + int(width * 0.38),
+        box[1] + int(height * 0.20),
+        box[0] + int(width * 0.62),
+        box[1] + int(height * 0.43),
+    )
+    body = (
+        box[0] + int(width * 0.27),
+        box[1] + int(height * 0.38),
+        box[0] + int(width * 0.73),
+        box[1] + int(height * 0.78),
+    )
+    left_friend = (
+        box[0] + int(width * 0.12),
+        box[1] + int(height * 0.35),
+        box[0] + int(width * 0.40),
+        box[1] + int(height * 0.74),
+    )
+    right_friend = (
+        box[0] + int(width * 0.60),
+        box[1] + int(height * 0.34),
+        box[0] + int(width * 0.88),
+        box[1] + int(height * 0.73),
+    )
+
+    draw.ellipse(face, fill=_color_with_alpha(theme["accent_alt"], 236))
+    draw.rounded_rectangle(body, radius=38, fill=_color_with_alpha(theme["accent"], 238))
+    draw.rounded_rectangle(left_friend, radius=34, fill=_color_with_alpha(theme["surface"], 240))
+    draw.rounded_rectangle(right_friend, radius=34, fill=_color_with_alpha(theme["surface"], 240))
+    draw.ellipse(
+        (box[0] + int(width * 0.20), box[1] + int(height * 0.76), box[0] + int(width * 0.80), box[1] + int(height * 0.90)),
+        fill=_color_with_alpha(theme["accent_alt"], 188),
+    )
+
+
+def _draw_public_service_ribbon(
+    draw: ImageDraw.ImageDraw,
+    center_x: int,
+    y: int,
+    text: str,
+    theme: dict,
+) -> tuple[int, int, int, int]:
+    font = _load_font("body", 22, _contains_multilingual_text(text))
+    text_width = _text_width(draw, text, font)
+    width = text_width + 74
+    height = 54
+    x1 = center_x - width // 2
+    x2 = center_x + width // 2
+    draw.rounded_rectangle((x1, y, x2, y + height), radius=26, fill=theme["accent"])
+    tail = 18
+    draw.polygon(
+        [(x1 + 18, y + height - 4), (x1 + 18 + tail, y + height - 4), (x1 + 22, y + height + 16)],
+        fill=theme["accent"],
+    )
+    draw.polygon(
+        [(x2 - 18, y + height - 4), (x2 - 18 - tail, y + height - 4), (x2 - 22, y + height + 16)],
+        fill=theme["accent"],
+    )
+    draw.text((center_x - text_width // 2, y + 13), text, font=font, fill=theme["light_text"])
+    return (x1, y, x2, y + height)
+
+
+def _prepare_public_service_canvas(width: int, height: int, theme: dict, slide_type: str) -> Image.Image:
+    canvas = Image.new("RGB", (width, height), ImageColor.getrgb(theme["bg_start"]))
+    overlay = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+
+    draw.ellipse(
+        (int(width * 0.12), int(height * 0.10), int(width * 0.88), int(height * 0.58)),
+        outline=_color_with_alpha(theme["accent_alt"], 66),
+        width=8,
+    )
+    draw.ellipse(
+        (int(width * 0.19), int(height * 0.16), int(width * 0.81), int(height * 0.52)),
+        outline=_color_with_alpha(theme["surface_alt"], 140),
+        width=5,
+    )
+    draw.ellipse(
+        (int(width * 0.05), int(height * 0.72), int(width * 0.24), int(height * 0.88)),
+        fill=_color_with_alpha(theme["surface_alt"], 180),
+    )
+    draw.ellipse(
+        (int(width * 0.77), int(height * 0.08), int(width * 0.92), int(height * 0.19)),
+        fill=_color_with_alpha(theme["accent_alt"], 116),
+    )
+
+    for x_ratio, y_ratio in [(0.15, 0.18), (0.83, 0.23), (0.88, 0.72), (0.12, 0.80)]:
+        x = int(width * x_ratio)
+        y = int(height * y_ratio)
+        draw.line((x - 8, y, x + 8, y), fill=_color_with_alpha(theme["accent"], 120), width=3)
+        draw.line((x, y - 8, x, y + 8), fill=_color_with_alpha(theme["accent"], 120), width=3)
+
+    if slide_type in {"list", "cta"}:
+        draw.rounded_rectangle(
+            (int(width * 0.10), int(height * 0.72), int(width * 0.90), int(height * 0.94)),
+            radius=46,
+            fill=_color_with_alpha(theme["surface"], 206),
+        )
+
+    return Image.alpha_composite(canvas.convert("RGBA"), overlay).convert("RGB")
 
 
 def _render_cover(canvas: Image.Image, slide: dict, theme: dict, index: int, total: int) -> Image.Image:
@@ -638,6 +856,60 @@ def _render_cover(canvas: Image.Image, slide: dict, theme: dict, index: int, tot
         font=hint_font,
         fill=theme["muted"],
     )
+    return canvas
+
+
+def _render_public_service_cover(canvas: Image.Image, slide: dict, theme: dict, index: int, total: int) -> Image.Image:
+    width, height = canvas.size
+    draw = ImageDraw.Draw(canvas)
+    _draw_brand_stamp(draw, width, theme)
+    if total > 1:
+        _draw_page_indicator(draw, width, total, index, theme, light=False)
+
+    hero_box = (int(width * 0.18), int(height * 0.15), int(width * 0.82), int(height * 0.55))
+    draw.ellipse(hero_box, fill=_color_with_alpha(theme["surface"], 248))
+    draw.ellipse(
+        (hero_box[0] + 24, hero_box[1] + 20, hero_box[2] - 24, hero_box[3] - 16),
+        fill=_color_with_alpha(theme["surface_alt"], 178),
+    )
+    if not _paste_ellipse_image(canvas, str(slide.get("background_path", "")).strip(), hero_box):
+        _draw_public_service_placeholder(canvas, hero_box, theme)
+    draw = ImageDraw.Draw(canvas)
+
+    ribbon_text = str(slide.get("eyebrow", "")).strip() or "핵심 가이드"
+    ribbon_box = _draw_public_service_ribbon(draw, width // 2, hero_box[3] - 14, ribbon_text, theme)
+
+    title_font, title_lines = _fit_text_block(
+        draw,
+        slide.get("title", ""),
+        "display",
+        int(width * 0.76),
+        3,
+        82,
+        48,
+    )
+    cursor_y = _draw_centered_text_lines(
+        draw,
+        title_lines,
+        title_font,
+        width // 2,
+        ribbon_box[3] + 42,
+        theme["text"],
+        0.98,
+    )
+
+    body_text = str(slide.get("body", "")).strip()
+    if body_text:
+        body_font, body_lines = _fit_text_block(draw, body_text, "body", int(width * 0.60), 2, 28, 20)
+        _draw_centered_text_lines(
+            draw,
+            body_lines,
+            body_font,
+            width // 2,
+            cursor_y + 12,
+            theme["muted"],
+            1.26,
+        )
     return canvas
 
 
@@ -971,6 +1243,103 @@ def _render_cta(canvas: Image.Image, slide: dict, theme: dict, index: int, total
     return canvas
 
 
+def _render_public_service_content(canvas: Image.Image, slide: dict, theme: dict, index: int, total: int) -> Image.Image:
+    width, height = canvas.size
+    draw = ImageDraw.Draw(canvas)
+    _draw_brand_stamp(draw, width, theme)
+    if total > 1:
+        _draw_page_indicator(draw, width, total, index, theme, light=False)
+
+    eyebrow_text = str(slide.get("eyebrow", "")).strip() or SLIDE_TYPE_LABELS.get(str(slide.get("type", "")), "GUIDE")
+    _draw_public_service_ribbon(draw, width // 2, 78, eyebrow_text, theme)
+
+    title_font, title_lines = _fit_text_block(
+        draw,
+        slide.get("title", ""),
+        "display",
+        int(width * 0.72),
+        3,
+        62,
+        38,
+    )
+    cursor_y = _draw_centered_text_lines(draw, title_lines, title_font, width // 2, 154, theme["text"], 1.0)
+
+    hero_box = (int(width * 0.15), cursor_y + 20, int(width * 0.85), int(height * 0.56))
+    draw.rounded_rectangle(
+        hero_box,
+        radius=42,
+        fill=_color_with_alpha(theme["surface"], 245),
+        outline=_color_with_alpha(theme["accent"], 72),
+        width=4,
+    )
+    inner_box = (hero_box[0] + 22, hero_box[1] + 18, hero_box[2] - 22, hero_box[3] - 18)
+    if not _paste_rounded_image(canvas, str(slide.get("background_path", "")).strip(), inner_box, radius=34):
+        _draw_public_service_placeholder(canvas, inner_box, theme)
+    draw = ImageDraw.Draw(canvas)
+
+    content_box = (int(width * 0.10), int(height * 0.62), int(width * 0.90), int(height * 0.92))
+    canvas = _draw_surface_panel(
+        canvas,
+        content_box,
+        _color_with_alpha(theme["surface"], 252),
+        radius=38,
+        shadow_alpha=14,
+        outline=_color_with_alpha(theme["surface_alt"], 255),
+    )
+    draw = ImageDraw.Draw(canvas)
+
+    highlight = str(slide.get("highlight", "")).strip()
+    text_top = content_box[1] + 28
+    if highlight:
+        _draw_pill(
+            draw,
+            highlight,
+            _load_font("body", 21, _contains_multilingual_text(highlight)),
+            content_box[0] + 24,
+            content_box[1] + 22,
+            _color_with_alpha(theme["accent_alt"], 228),
+            theme["text"],
+            padding_x=16,
+            padding_y=10,
+        )
+        text_top = content_box[1] + 80
+
+    slide_type = str(slide.get("type", "")).strip().lower()
+    if slide_type in {"list", "cta"}:
+        bullet_top = text_top
+        bullets = _derive_bullets(slide)
+        bullet_font = _load_font("body", 23, _contains_multilingual_text(" ".join(bullets)))
+        for bullet_index, bullet in enumerate(bullets[:3], start=1):
+            row_box = (
+                content_box[0] + 22,
+                bullet_top,
+                content_box[2] - 22,
+                bullet_top + 64,
+            )
+            draw.rounded_rectangle(row_box, radius=22, fill=_color_with_alpha(theme["surface_alt"], 210))
+            draw.ellipse((row_box[0] + 14, row_box[1] + 14, row_box[0] + 44, row_box[1] + 44), fill=theme["accent"])
+            draw.text((row_box[0] + 23, row_box[1] + 10), str(bullet_index), font=_load_font("display", 20, False), fill=theme["light_text"])
+            draw.text((row_box[0] + 62, row_box[1] + 17), bullet, font=bullet_font, fill=theme["text"])
+            bullet_top += 76
+
+        if slide_type == "cta":
+            cta_text = str(slide.get("body", "")).strip() or "Save this card and take the next step."
+            cta_font, cta_lines = _fit_text_block(draw, cta_text, "body", content_box[2] - content_box[0] - 48, 2, 24, 18)
+            _draw_centered_text_lines(draw, cta_lines, cta_font, width // 2, content_box[3] - 94, theme["muted"], 1.26)
+    else:
+        body_font, body_lines = _fit_text_block(
+            draw,
+            slide.get("body", ""),
+            "body",
+            content_box[2] - content_box[0] - 48,
+            5,
+            26,
+            20,
+        )
+        _draw_text_lines(draw, body_lines, body_font, content_box[0] + 24, text_top, theme["text"], 1.40)
+    return canvas
+
+
 def _prepare_poster_canvas(width: int, height: int, theme: dict, slide: dict) -> Image.Image:
     canvas = _vertical_gradient(width, height, theme["surface"], theme["surface_alt"])
     background = _fit_background(slide.get("background_path", ""), width, height)
@@ -1216,12 +1585,67 @@ def _render_poster(canvas: Image.Image, slide: dict, theme: dict, index: int, to
     return canvas
 
 
+def _render_public_service_poster(canvas: Image.Image, slide: dict, theme: dict, index: int, total: int) -> Image.Image:
+    width, height = canvas.size
+    draw = ImageDraw.Draw(canvas)
+    _draw_brand_stamp(draw, width, theme)
+    if total > 1:
+        _draw_page_indicator(draw, width, total, index, theme, light=False)
+
+    hero_box = (int(width * 0.17), 110, int(width * 0.83), int(height * 0.40))
+    draw.ellipse(hero_box, fill=_color_with_alpha(theme["surface"], 246))
+    if not _paste_ellipse_image(canvas, str(slide.get("background_path", "")).strip(), hero_box):
+        _draw_public_service_placeholder(canvas, hero_box, theme)
+    draw = ImageDraw.Draw(canvas)
+
+    _draw_public_service_ribbon(
+        draw,
+        width // 2,
+        hero_box[3] - 6,
+        str(slide.get("eyebrow", "")).strip() or "VISUAL GUIDE",
+        theme,
+    )
+    title_font, title_lines = _fit_text_block(draw, slide.get("title", ""), "display", int(width * 0.74), 3, 66, 42)
+    cursor_y = _draw_centered_text_lines(draw, title_lines, title_font, width // 2, hero_box[3] + 70, theme["text"], 0.98)
+    body_font, body_lines = _fit_text_block(draw, slide.get("body", ""), "body", int(width * 0.68), 2, 24, 18)
+    _draw_centered_text_lines(draw, body_lines, body_font, width // 2, cursor_y + 10, theme["muted"], 1.24)
+
+    item_boxes = _poster_item_boxes(len(slide.get("poster_items", [])), width, height)
+    for item_index, (item, box) in enumerate(zip(slide.get("poster_items", []), item_boxes), start=1):
+        item_box = (box[0], box[1] + 60, box[2], box[3] + 28)
+        canvas = _draw_surface_panel(
+            canvas,
+            item_box,
+            _color_with_alpha(theme["surface"], 248),
+            radius=28,
+            shadow_alpha=10,
+            outline=_color_with_alpha(theme["surface_alt"], 255),
+        )
+        draw = ImageDraw.Draw(canvas)
+        art_box = (item_box[0] + 16, item_box[1] + 14, item_box[2] - 16, item_box[1] + int((item_box[3] - item_box[1]) * 0.48))
+        if not _paste_rounded_image(canvas, str(item.get("illustration_path", "")).strip(), art_box, radius=22):
+            _draw_public_service_placeholder(canvas, art_box, theme)
+        draw = ImageDraw.Draw(canvas)
+
+        badge = (item_box[0] + 12, item_box[1] - 18, item_box[0] + 54, item_box[1] + 24)
+        draw.ellipse(badge, fill=theme["accent"])
+        draw.text((badge[0] + 14, badge[1] + 8), str(item_index), font=_load_font("display", 22, False), fill=theme["light_text"])
+
+        label_font, label_lines = _fit_text_block(draw, item.get("label", ""), "display", item_box[2] - item_box[0] - 28, 2, 24, 18)
+        sublabel_font, sublabel_lines = _fit_text_block(draw, item.get("sublabel", ""), "body", item_box[2] - item_box[0] - 28, 2, 17, 13)
+        label_top = art_box[3] + 16
+        next_y = _draw_centered_text_lines(draw, label_lines, label_font, item_box[0] + ((item_box[2] - item_box[0]) // 2), label_top, theme["text"], 1.02)
+        _draw_centered_text_lines(draw, sublabel_lines, sublabel_font, item_box[0] + ((item_box[2] - item_box[0]) // 2), next_y + 4, theme["muted"], 1.20)
+    return canvas
+
+
 def render_cardnews_slides(
     slides: list[dict],
     output_dir: str,
     width: int,
     height: int,
     deck_topic: str = "",
+    visual_style: str = "editorial_abstract",
 ) -> list[str]:
     """
     Render carousel slides to PNG files.
@@ -1238,7 +1662,7 @@ def render_cardnews_slides(
     """
     os.makedirs(output_dir, exist_ok=True)
     asset_paths = []
-    theme = _select_theme(deck_topic)
+    theme = _select_theme(deck_topic, visual_style=visual_style)
     total = len(slides)
 
     for index, slide in enumerate(slides, start=1):
@@ -1256,22 +1680,52 @@ def render_cardnews_slides(
         slide_copy["topic"] = slide_copy.get("topic", deck_topic)
 
         if slide_type == "poster":
-            canvas = _render_poster(Image.new("RGB", (width, height), theme["surface"]), slide_copy, theme, index, total)
+            if _is_public_service_style(visual_style):
+                canvas = _render_public_service_poster(
+                    _prepare_public_service_canvas(width, height, theme, slide_type),
+                    slide_copy,
+                    theme,
+                    index,
+                    total,
+                )
+            else:
+                canvas = _render_poster(Image.new("RGB", (width, height), theme["surface"]), slide_copy, theme, index, total)
         else:
-            canvas = _prepare_canvas(width, height, theme, slide_copy, index)
+            if _is_public_service_style(visual_style):
+                canvas = _prepare_public_service_canvas(width, height, theme, slide_type)
+            else:
+                canvas = _prepare_canvas(width, height, theme, slide_copy, index)
 
         if slide_type == "cover":
-            canvas = _render_cover(canvas, slide_copy, theme, index, total)
+            if _is_public_service_style(visual_style):
+                canvas = _render_public_service_cover(canvas, slide_copy, theme, index, total)
+            else:
+                canvas = _render_cover(canvas, slide_copy, theme, index, total)
         elif slide_type == "list":
-            canvas = _render_list(canvas, slide_copy, theme, index, total)
+            if _is_public_service_style(visual_style):
+                canvas = _render_public_service_content(canvas, slide_copy, theme, index, total)
+            else:
+                canvas = _render_list(canvas, slide_copy, theme, index, total)
         elif slide_type == "stat":
-            canvas = _render_stat(canvas, slide_copy, theme, index, total)
+            if _is_public_service_style(visual_style):
+                canvas = _render_public_service_content(canvas, slide_copy, theme, index, total)
+            else:
+                canvas = _render_stat(canvas, slide_copy, theme, index, total)
         elif slide_type == "quote":
-            canvas = _render_quote(canvas, slide_copy, theme, index, total)
+            if _is_public_service_style(visual_style):
+                canvas = _render_public_service_content(canvas, slide_copy, theme, index, total)
+            else:
+                canvas = _render_quote(canvas, slide_copy, theme, index, total)
         elif slide_type == "cta":
-            canvas = _render_cta(canvas, slide_copy, theme, index, total)
+            if _is_public_service_style(visual_style):
+                canvas = _render_public_service_content(canvas, slide_copy, theme, index, total)
+            else:
+                canvas = _render_cta(canvas, slide_copy, theme, index, total)
         else:
-            canvas = _render_insight(canvas, slide_copy, theme, index, total)
+            if _is_public_service_style(visual_style):
+                canvas = _render_public_service_content(canvas, slide_copy, theme, index, total)
+            else:
+                canvas = _render_insight(canvas, slide_copy, theme, index, total)
 
         output_path = os.path.join(output_dir, f"{index:02d}.png")
         canvas.save(output_path, format="PNG")

@@ -1,8 +1,8 @@
 import os
 from datetime import datetime
 
-from cache import get_cardnews_config
 from cache import get_cardnews_draft
+from config import get_cardnews_config
 from cache import update_cardnews_job
 
 

@@ -75,6 +75,40 @@ class CardNewsRendererTests(unittest.TestCase):
             self.assertTrue(os.path.exists(asset_paths[0]))
             self.assertGreater(os.path.getsize(asset_paths[0]), 0)
 
+    def test_render_cardnews_slides_supports_public_service_style(self) -> None:
+        slides = [
+            {
+                "type": "cover",
+                "eyebrow": "육아정보",
+                "title": "부모가 꼭 알아야 할\n영아수당 핵심 정리",
+                "body": "지원 범위와 실질 혜택을 한 번에 살펴봅니다.",
+                "highlight": "0-1세 지원 제도",
+                "topic": "영아수당 가이드",
+            },
+            {
+                "type": "insight",
+                "eyebrow": "핵심 비교",
+                "title": "국가별 육아정책 차이",
+                "body": "한 화면에서 차이를 읽기 쉽게 정리합니다.",
+                "topic": "영아수당 가이드",
+            },
+        ]
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            asset_paths = render_cardnews_slides(
+                slides,
+                temp_dir,
+                1080,
+                1350,
+                deck_topic="영아수당 가이드",
+                visual_style="public_service_flat",
+            )
+
+            self.assertEqual(len(asset_paths), 2)
+            for asset_path in asset_paths:
+                self.assertTrue(os.path.exists(asset_path))
+                self.assertGreater(os.path.getsize(asset_path), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

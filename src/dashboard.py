@@ -439,7 +439,22 @@ def create_app() -> Flask:
 
     @app.get("/artifacts/<draft_id>/<file_name>")
     def serve_artifact(draft_id: str, file_name: str):
-        asset_path = os.path.join(ROOT_DIR, ".mp", "cardnews", draft_id, "slides", file_name)
+        draft = get_cardnews_draft(draft_id)
+        asset_path = ""
+
+        if draft is not None:
+            for slide in draft.get("slides", []):
+                candidate = str(slide.get("asset_path", "")).strip()
+                if candidate and os.path.basename(candidate) == file_name:
+                    asset_path = candidate
+                    break
+
+        if asset_path and not os.path.isabs(asset_path):
+            asset_path = os.path.join(ROOT_DIR, asset_path)
+
+        if not asset_path:
+            asset_path = os.path.join(ROOT_DIR, ".mp", "cardnews", draft_id, "slides", file_name)
+
         if not os.path.exists(asset_path):
             abort(404)
 

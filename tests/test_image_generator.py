@@ -3,6 +3,7 @@ import sys
 import tempfile
 import unittest
 from unittest.mock import patch
+from unittest.mock import call
 
 
 ROOT_DIR = os.path.dirname(os.path.dirname(__file__))
@@ -102,6 +103,67 @@ class ImageGeneratorTests(unittest.TestCase):
             )
             self.assertEqual(prompt_payload["4"]["inputs"]["width"], 1024)
             self.assertEqual(prompt_payload["4"]["inputs"]["height"], 1280)
+
+    @patch("image_generator._poll_comfyui_history", return_value=None)
+    @patch("image_generator.requests.post")
+    @patch("image_generator.get_image_generation_config")
+    def test_generate_image_asset_with_comfyui_timeout_cancels_prompt_and_records_error(
+        self,
+        get_image_generation_config_mock,
+        requests_post_mock,
+        _poll_comfyui_history_mock,
+    ) -> None:
+        get_image_generation_config_mock.return_value = {
+            "provider": "comfyui",
+            "gemini": {},
+            "comfyui": {
+                "base_url": "http://127.0.0.1:8188",
+                "workflow_path": "",
+                "checkpoint": "flux1-schnell-fp8.safetensors",
+                "negative_prompt": "",
+                "steps": 4,
+                "cfg": 1.0,
+                "sampler_name": "euler",
+                "scheduler": "simple",
+                "timeout_seconds": 360,
+            },
+        }
+        requests_post_mock.side_effect = [
+            DummyResponse({"prompt_id": "prompt-123"}),
+            DummyResponse({}),
+            DummyResponse({}),
+        ]
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            image_path = image_generator.generate_image_asset(
+                "Poster illustration",
+                temp_dir,
+                aspect_ratio="1:1",
+                provider="comfyui",
+            )
+
+        self.assertIsNone(image_path)
+        self.assertIn("timed out after 360 seconds", image_generator.get_last_image_generation_error())
+        self.assertEqual(
+            requests_post_mock.call_args_list,
+            [
+                call(
+                    "http://127.0.0.1:8188/prompt",
+                    json=unittest.mock.ANY,
+                    timeout=30,
+                ),
+                call(
+                    "http://127.0.0.1:8188/interrupt",
+                    json={"prompt_id": "prompt-123"},
+                    timeout=10,
+                ),
+                call(
+                    "http://127.0.0.1:8188/queue",
+                    json={"delete": ["prompt-123"]},
+                    timeout=10,
+                ),
+            ],
+        )
 
     @patch("image_generator.get_image_generation_config")
     def test_generate_image_asset_with_none_provider_returns_none(

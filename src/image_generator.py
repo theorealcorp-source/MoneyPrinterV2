@@ -23,6 +23,16 @@ ASPECT_RATIO_DIMENSIONS = {
     "3:2": (1216, 832),
     "2:3": (832, 1216),
 }
+_LAST_IMAGE_GENERATION_ERROR = ""
+
+
+def _set_last_image_generation_error(message: str) -> None:
+    global _LAST_IMAGE_GENERATION_ERROR
+    _LAST_IMAGE_GENERATION_ERROR = str(message).strip()
+
+
+def get_last_image_generation_error() -> str:
+    return _LAST_IMAGE_GENERATION_ERROR
 
 
 def _persist_image_bytes(image_bytes: bytes, output_dir: str) -> str:
@@ -215,6 +225,30 @@ def _poll_comfyui_history(
     return None
 
 
+def _cancel_comfyui_prompt(base_url: str, prompt_id: str) -> None:
+    if not prompt_id:
+        return
+
+    base = base_url.rstrip("/")
+    try:
+        requests.post(
+            f"{base}/interrupt",
+            json={"prompt_id": prompt_id},
+            timeout=10,
+        )
+    except Exception:
+        pass
+
+    try:
+        requests.post(
+            f"{base}/queue",
+            json={"delete": [prompt_id]},
+            timeout=10,
+        )
+    except Exception:
+        pass
+
+
 def _generate_with_comfyui(
     prompt: str,
     output_dir: str,
@@ -226,6 +260,7 @@ def _generate_with_comfyui(
     width, height = ASPECT_RATIO_DIMENSIONS.get(aspect_ratio, (1024, 1024))
     seed = int(uuid4().int % 2_147_483_647)
     filename_prefix = "MoneyPrinter/cardnews"
+    prompt_id = ""
 
     variables = {
         "prompt": prompt,
@@ -261,8 +296,11 @@ def _generate_with_comfyui(
             progress_callback=progress_callback,
         )
         if history is None:
+            _cancel_comfyui_prompt(comfyui_config["base_url"], prompt_id)
             raise RuntimeError(
-                f"ComfyUI timed out after {comfyui_config['timeout_seconds']} seconds."
+                "ComfyUI timed out after "
+                f"{comfyui_config['timeout_seconds']} seconds using checkpoint "
+                f"'{comfyui_config['checkpoint']}'."
             )
 
         for output in history.get("outputs", {}).values():
@@ -278,13 +316,18 @@ def _generate_with_comfyui(
                 )
                 view_response.raise_for_status()
                 return _persist_image_bytes(view_response.content, output_dir)
+        raise RuntimeError(
+            "ComfyUI completed the workflow but returned no downloadable images."
+        )
     except Exception as exc:
+        _set_last_image_generation_error(str(exc))
         if get_verbose():
             warning(f"ComfyUI image generation failed: {exc}")
         return None
 
     if get_verbose():
         warning("ComfyUI image generation returned no images.")
+    _set_last_image_generation_error("ComfyUI image generation returned no images.")
     return None
 
 
@@ -309,6 +352,7 @@ def generate_image_asset(
     """
     image_config = get_image_generation_config()
     selected_provider = str(provider or get_image_provider()).strip().lower()
+    _set_last_image_generation_error("")
 
     if selected_provider == "none":
         return None

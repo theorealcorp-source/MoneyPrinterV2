@@ -10,22 +10,55 @@
   <link rel="stylesheet" href="/static/css/dashboard.css">
 </head>
 <body>
-  <a class="skip-link" href="#compose">메인 콘텐츠로 건너뛰기</a>
-  <div class="layout">
+  <a class="skip-link" href="#studio">Skip to workspace</a>
+
+  {% set published_count = state.cardnews_drafts | selectattr('status', 'equalto', 'published') | list | length %}
+  {% set approved_count  = state.cardnews_drafts | selectattr('status', 'equalto', 'approved')  | list | length %}
+  {% set total_drafts    = state.cardnews_drafts | length %}
+  {% set pending_count   = total_drafts - published_count - approved_count %}
+  {% set running_jobs    = state.cardnews_jobs | selectattr('is_active') | list | length %}
+
+  <div class="app-shell">
     <aside class="sidebar">
       <section class="brand-block">
         <p class="brand-kicker">MoneyPrinter V2</p>
         <h1 class="brand-title">CardNews Studio</h1>
-        <p class="brand-copy">Generate, inspect, approve, and publish card-news decks without digging through a single long form.</p>
+        <p class="brand-copy">Generate drafts, review the latest deck, and publish only after approval.</p>
       </section>
 
       <section class="sidebar-section">
-        <p class="sidebar-label">Navigate</p>
-        <nav class="sidebar-nav">
-          <a href="#compose"><span>Compose</span></a>
-          <a href="#drafts"><span>Draft Library</span><span>{{ state.cardnews_drafts|length }}</span></a>
-          <a href="#profiles"><span>Profiles</span><span>{{ state.cardnews_profiles|length }}</span></a>
-          <a href="#settings"><span>Settings</span><span>{{ state.image.config.provider }}</span></a>
+        <p class="sidebar-label">Workflow</p>
+        <div class="workflow-list">
+          <div class="workflow-item">
+            <span class="workflow-step">1</span>
+            <div>
+              <strong>Generate</strong>
+              <p>Start from a saved profile or topic override.</p>
+            </div>
+          </div>
+          <div class="workflow-item">
+            <span class="workflow-step">2</span>
+            <div>
+              <strong>Review</strong>
+              <p>Check the latest draft, issues, and output preview.</p>
+            </div>
+          </div>
+          <div class="workflow-item">
+            <span class="workflow-step">3</span>
+            <div>
+              <strong>Publish</strong>
+              <p>Ship only approved decks to connected channels.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="sidebar-section">
+        <p class="sidebar-label">Workspace</p>
+        <nav class="rail-nav" aria-label="Workspace sections">
+          <a href="#studio" id="railStudio" class="rail-link" data-tab-target="studio">Studio</a>
+          <a href="#profiles" id="railProfiles" class="rail-link" data-tab-target="profiles">Profiles</a>
+          <a href="#settings" id="railSettings" class="rail-link" data-tab-target="settings">Settings</a>
         </nav>
       </section>
 
@@ -51,95 +84,80 @@
       </section>
 
       <section class="sidebar-section">
-        <p class="sidebar-label">Display</p>
-        <button type="button" class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
-          <svg id="themeIcon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-          <span id="themeLabel">Dark mode</span>
-        </button>
-      </section>
-
-      <section class="sidebar-section">
-        <p class="sidebar-label">Working Set</p>
-        <div class="stack-brief">
+        <p class="sidebar-label">Current Stack</p>
+        <div class="stack-note">
           <p><strong>LLM</strong> · {{ state.llm.provider }}{% if state.llm.active_model %} · {{ state.llm.active_model }}{% endif %}</p>
           <p><strong>Image</strong> · {{ state.image.config.provider }}{% if state.image.config.provider == 'comfyui' %} · {{ state.image.config.comfyui.checkpoint or 'No checkpoint' }}{% else %} · {{ state.config.get('nanobanana2_model', '') or 'No model' }}{% endif %}</p>
-          <p><strong>Defaults</strong> · {{ state.cardnews_defaults.format }} · {% if state.cardnews_defaults.format == 'poster' %}{{ state.cardnews_defaults.poster_item_count }} items{% else %}{{ state.cardnews_defaults.slides_per_post }} slides{% endif %}</p>
+          <p><strong>Default</strong> · {{ state.cardnews_defaults.format }} · {% if state.cardnews_defaults.format == 'poster' %}{{ state.cardnews_defaults.poster_item_count }} items{% else %}{{ state.cardnews_defaults.slides_per_post }} slides{% endif %}</p>
         </div>
       </section>
     </aside>
 
     <main class="workspace">
-      <section class="masthead">
+      <header class="topbar">
         <div>
-          <p class="eyebrow">Operational workspace</p>
-          <h1>Generate, review, and ship without losing the thread.</h1>
-          <p>Use this screen like an operator console: start a job, watch its progress, inspect the latest draft, and only publish after the review state is clean.</p>
+          <p class="eyebrow">Content operations dashboard</p>
+          <h1>One workspace for generate, review, and publish.</h1>
+          <p class="lede">This dashboard is split by task. Use <strong>Studio</strong> for daily work, <strong>Profiles</strong> for editorial presets, and <strong>Settings</strong> for model and backend configuration.</p>
         </div>
-        <div class="masthead-actions">
-          <a class="button" href="#compose">New Job</a>
-          <a class="button-secondary" href="#drafts">Drafts</a>
-          <a class="button-ghost" href="#settings">Settings</a>
+        <div class="topbar-actions">
+          <a class="button" href="#compose">New Draft</a>
+          <a class="button-secondary" href="#review">Review Latest</a>
+          <a class="button-ghost" href="#settings">Stack Settings</a>
         </div>
-      </section>
+      </header>
 
       {% if notice or error %}
         <script type="application/json" id="flashData">{"notice":{{ notice|tojson if notice else 'null' }},"error":{{ error|tojson if error else 'null' }}}</script>
       {% endif %}
 
-      {% set published_count = state.cardnews_drafts | selectattr('status', 'equalto', 'published') | list | length %}
-      {% set approved_count  = state.cardnews_drafts | selectattr('status', 'equalto', 'approved')  | list | length %}
-      {% set total_drafts    = state.cardnews_drafts | length %}
-      {% set pending_count   = total_drafts - published_count - approved_count %}
-
-      <section class="section">
-        <div class="kpi-row">
-          <div class="kpi-card">
-            <span class="kpi-value">{{ total_drafts }}</span>
-            <span class="kpi-label">Total Drafts</span>
-            <p class="kpi-sub">{{ state.cardnews_profiles|length }} profile{% if state.cardnews_profiles|length != 1 %}s{% endif %} active</p>
-          </div>
-          <div class="kpi-card">
-            <span class="kpi-value success">{{ published_count }}</span>
-            <span class="kpi-label">Published</span>
-            <p class="kpi-sub">Shipped to channels</p>
-          </div>
-          <div class="kpi-card">
-            <span class="kpi-value accent">{{ approved_count }}</span>
-            <span class="kpi-label">Approved</span>
-            <p class="kpi-sub">Ready to publish</p>
-          </div>
-          <div class="kpi-card">
-            <span class="kpi-value {% if pending_count > 0 %}warning{% endif %}">{{ pending_count }}</span>
-            <span class="kpi-label">Pending Review</span>
-            <p class="kpi-sub">Awaiting approval</p>
-          </div>
-        </div>
+      <section class="studio-stats" aria-label="Workspace summary">
+        <article class="stat-tile">
+          <span class="stat-label">Drafts</span>
+          <strong class="stat-value">{{ total_drafts }}</strong>
+          <span class="stat-meta">{{ state.cardnews_profiles|length }} profile{% if state.cardnews_profiles|length != 1 %}s{% endif %}</span>
+        </article>
+        <article class="stat-tile">
+          <span class="stat-label">Running</span>
+          <strong class="stat-value">{{ running_jobs }}</strong>
+          <span class="stat-meta">generation jobs</span>
+        </article>
+        <article class="stat-tile">
+          <span class="stat-label">Ready</span>
+          <strong class="stat-value">{{ approved_count }}</strong>
+          <span class="stat-meta">approved to publish</span>
+        </article>
+        <article class="stat-tile">
+          <span class="stat-label">Pending</span>
+          <strong class="stat-value {% if pending_count > 0 %}warning{% endif %}">{{ pending_count }}</strong>
+          <span class="stat-meta">needs review</span>
+        </article>
       </section>
 
-      <section id="queue" class="section">
-        <div class="section-head">
-          <div>
-            <h2>Generation Queue</h2>
-            <p>Long image jobs now run in the background. This panel shows the current stage instead of leaving the screen frozen.</p>
-          </div>
-        </div>
-        <div id="jobQueue" class="queue-shell"></div>
-      </section>
+      <nav class="workspace-tabs" role="tablist" aria-label="Workspace views">
+        <a href="#studio" id="tabStudio" class="tab-trigger" data-tab-target="studio" role="tab" aria-controls="studioPanel">Studio</a>
+        <a href="#profiles" id="tabProfiles" class="tab-trigger" data-tab-target="profiles" role="tab" aria-controls="profilesPanel">Profiles</a>
+        <a href="#settings" id="tabSettings" class="tab-trigger" data-tab-target="settings" role="tab" aria-controls="settingsPanel">Settings</a>
+      </nav>
 
-      <section id="compose" class="section">
-        <div class="section-head">
-          <div>
-            <h2>Compose Workspace</h2>
-            <p>Start jobs from a saved profile, keep profile edits separate, and use the latest draft as the primary review surface.</p>
-          </div>
+      <section id="studioPanel" class="tab-panel" data-panel="studio" role="tabpanel" aria-labelledby="tabStudio">
+        <div class="section-intro">
+          <p class="eyebrow">Studio</p>
+          <h2>Daily production workspace</h2>
+          <p>Everything needed for today’s content run: generate a draft, watch generation progress, review the latest output, and inspect recent drafts.</p>
         </div>
 
-        <div class="compose-grid">
-          <div class="compose-rail">
-            <article class="panel">
-              <p class="eyebrow">Quick Generate</p>
-              <h3>Build the next draft</h3>
-              <p class="panel-copy">Pick a profile, choose the output format, and queue a background generation job.</p>
+        <div class="studio-grid">
+          <section id="compose" class="surface">
+            <div class="surface-head">
+              <div>
+                <p class="eyebrow">Generate</p>
+                <h3>Compose Workspace</h3>
+              </div>
+              <p class="surface-copy">Start a new card-news job from a saved profile.</p>
+            </div>
+
+            {% if state.cardnews_profiles %}
               <form method="post" action="/cardnews/generate" id="generateForm">
                 <div class="field-grid single">
                   <div class="field-group">
@@ -156,397 +174,258 @@
                       <option value="carousel" {% if state.cardnews_defaults.format == 'carousel' %}selected{% endif %}>carousel</option>
                       <option value="poster" {% if state.cardnews_defaults.format == 'poster' %}selected{% endif %}>poster</option>
                     </select>
-                    <p class="field-hint">`poster` renders a one-page infographic with illustrated item cards.</p>
+                    <p class="field-hint">Use <code>poster</code> for a one-page infographic. Use <code>carousel</code> for multi-slide publishing.</p>
                   </div>
                   <div class="field-group">
                     <label class="field-label" for="gen-topic-override">Topic Override</label>
-                    <textarea name="topic_override" id="gen-topic-override" placeholder="Leave blank to let the planner pick a topic."></textarea>
+                    <textarea name="topic_override" id="gen-topic-override" placeholder="Leave blank to let the planner choose the topic."></textarea>
                   </div>
                 </div>
                 <div class="form-actions">
                   <button class="button" id="generateButton" type="submit">Start Generation</button>
                 </div>
               </form>
-            </article>
+            {% else %}
+              <div class="empty-state">No CardNews profiles found. Create a profile first in the <strong>Profiles</strong> tab.</div>
+            {% endif %}
+          </section>
 
-            <article class="panel">
-              <p class="eyebrow">Profile Builder</p>
-              <h3>Create or tune a profile</h3>
-              <p class="panel-copy">Profiles hold niche, language, and channel defaults so each run starts from a stable editorial setup.</p>
-              <form method="post" action="/accounts/cardnews/save">
-                <div class="field-grid">
-                  <div class="field-group field-span-2">
-                    <label class="field-label" for="pb-nickname">Nickname</label>
-                    <input name="nickname" id="pb-nickname" placeholder="Finance KR">
-                  </div>
-                  <div class="field-group field-span-2">
-                    <label class="field-label" for="pb-niche">Niche</label>
-                    <input name="niche" id="pb-niche" placeholder="budgeting for young professionals">
-                  </div>
-                  <div class="field-group">
-                    <label class="field-label" for="pb-language">Language</label>
-                    <input name="language" id="pb-language" value="Korean">
-                  </div>
-                  <div class="field-group">
-                    <label class="field-label" for="pb-channels">Channels</label>
-                    <input name="channels" id="pb-channels" value="{{ state.cardnews_defaults.default_channels|join(', ') }}">
-                  </div>
-                </div>
-                <div class="form-actions">
-                  <button class="button-secondary" type="submit">Save Profile</button>
-                </div>
-              </form>
-            </article>
+          <section id="queue" class="surface">
+            <div class="surface-head">
+              <div>
+                <p class="eyebrow">Monitor</p>
+                <h3>Generation Queue</h3>
+              </div>
+              <p class="surface-copy">Long-running image jobs update here so you can keep working.</p>
+            </div>
+            <div id="jobQueue" class="queue-shell"></div>
+          </section>
+        </div>
+
+        <section id="review" class="surface">
+          <div class="surface-head">
+            <div>
+              <p class="eyebrow">Review</p>
+              <h3>Latest Draft Review</h3>
+            </div>
+            <p class="surface-copy">The newest draft becomes the main review surface. Approve here before publishing.</p>
           </div>
 
-          <article class="panel spotlight">
-            <p class="eyebrow">Latest Draft Spotlight</p>
-            {% if state.recent_draft %}
-              <div class="spotlight-hero">
-                <div class="spotlight-media">
+          {% if state.recent_draft %}
+            <div class="review-layout">
+              <div class="review-preview">
+                {% if state.recent_draft.slide_urls %}
+                  <button
+                    type="button"
+                    class="preview-button"
+                    data-topic="{{ state.recent_draft.topic }}"
+                    data-slides='{{ state.recent_draft.slide_urls|tojson|safe }}'
+                    onclick="openViewer(this)"
+                  >
+                    <img src="{{ state.recent_draft.slide_urls[0] }}" alt="{{ state.recent_draft.topic }}" loading="lazy">
+                  </button>
+                {% else %}
+                  <div class="empty-state">No preview image found for the latest draft yet.</div>
+                {% endif %}
+              </div>
+
+              <div class="review-copy">
+                <div class="chip-row">
+                  <span class="chip">{{ state.recent_draft.status }}</span>
+                  <span class="chip {% if state.recent_draft.review.status == 'flag' %}warn{% elif state.recent_draft.review.status == 'pass' %}ok{% else %}muted{% endif %}">{{ state.recent_draft.review.status }}</span>
+                  {% for channel in state.recent_draft.channels %}
+                    <span class="chip muted">{{ channel }}</span>
+                  {% endfor %}
+                </div>
+
+                <h3 class="topic">{{ state.recent_draft.topic }}</h3>
+                <p class="surface-copy review-summary">{{ state.recent_draft.review.summary }}</p>
+
+                <div class="meta-grid">
+                  <div class="meta-card">
+                    <label>Profile</label>
+                    <strong>{{ state.recent_draft.profile_nickname }}</strong>
+                  </div>
+                  <div class="meta-card">
+                    <label>Created</label>
+                    <strong>{{ state.recent_draft.created_at }}</strong>
+                  </div>
+                  <div class="meta-card">
+                    <label>Format</label>
+                    <strong>{{ state.recent_draft.format }}</strong>
+                  </div>
+                  <div class="meta-card">
+                    <label>Output</label>
+                    <strong>{{ state.recent_draft.slide_count_label }}</strong>
+                  </div>
+                </div>
+
+                {% if state.recent_draft.review.issues %}
+                  <div class="issue-list">
+                    {% for issue in state.recent_draft.review.issues[:3] %}
+                      <div class="issue-item">{{ issue }}</div>
+                    {% endfor %}
+                    {% if state.recent_draft.review.issues|length > 3 %}
+                      <div class="issue-item muted">+{{ state.recent_draft.review.issues|length - 3 }} more issue{% if state.recent_draft.review.issues|length - 3 != 1 %}s{% endif %}</div>
+                    {% endif %}
+                  </div>
+                {% endif %}
+
+                <div class="form-actions">
                   {% if state.recent_draft.slide_urls %}
                     <button
                       type="button"
-                      data-topic="{{ state.recent_draft.topic }}"
-                      data-slides='{{ state.recent_draft.slide_urls|tojson|safe }}'
-                      onclick="openViewer(this)"
-                    >
-                      <img src="{{ state.recent_draft.slide_urls[0] }}" alt="{{ state.recent_draft.topic }}" loading="lazy">
-                    </button>
-                  {% else %}
-                    <div class="empty-state">No preview image found for the latest draft.</div>
-                  {% endif %}
-                </div>
-
-                <div class="spotlight-copy">
-                  <div class="chip-row">
-                    <span class="chip">{{ state.recent_draft.status }}</span>
-                    <span class="chip {% if state.recent_draft.review.status == 'flag' %}warn{% elif state.recent_draft.review.status == 'pass' %}ok{% else %}muted{% endif %}">{{ state.recent_draft.review.status }}</span>
-                    {% for channel in state.recent_draft.channels %}
-                      <span class="chip muted">{{ channel }}</span>
-                    {% endfor %}
-                  </div>
-
-                  <h3 class="topic">{{ state.recent_draft.topic }}</h3>
-                  <p class="subtopic">{{ state.recent_draft.review.summary }}</p>
-
-                  <div class="meta-grid">
-                    <div class="meta-card">
-                      <label>Profile</label>
-                      <strong>{{ state.recent_draft.profile_nickname }}</strong>
-                    </div>
-                    <div class="meta-card">
-                      <label>Created</label>
-                      <strong>{{ state.recent_draft.created_at }}</strong>
-                    </div>
-                    <div class="meta-card">
-                      <label>Format</label>
-                      <strong>{{ state.recent_draft.format }}</strong>
-                    </div>
-                    <div class="meta-card">
-                      <label>Output</label>
-                      <strong>{{ state.recent_draft.slide_count_label }}</strong>
-                    </div>
-                  </div>
-
-                  <div class="chip-row">
-                    {% for slide_type in state.recent_draft.slide_types %}
-                      <span class="chip muted">{{ slide_type }}</span>
-                    {% endfor %}
-                  </div>
-
-                  {% if state.recent_draft.review.issues %}
-                    <div class="chip-row">
-                      {% for issue in state.recent_draft.review.issues[:2] %}
-                        <span class="chip warn">{{ issue }}</span>
-                      {% endfor %}
-                      {% if state.recent_draft.review.issues|length > 2 %}
-                        <span class="chip muted">+{{ state.recent_draft.review.issues|length - 2 }} more</span>
-                      {% endif %}
-                    </div>
-                  {% endif %}
-
-                  <div class="inline-actions">
-                    {% if state.recent_draft.slide_urls %}
-                      <button
-                        type="button"
-                        class="inline-button"
-                        data-topic="{{ state.recent_draft.topic }}"
-                        data-slides='{{ state.recent_draft.slide_urls|tojson|safe }}'
-                        onclick="openViewer(this)"
-                      >Open Deck</button>
-                    {% endif %}
-                    <form method="post" action="/cardnews/approve">
-                      <input type="hidden" name="draft_id" value="{{ state.recent_draft.id }}">
-                      <button class="button-secondary" type="submit">Approve</button>
-                    </form>
-                    <form method="post" action="/cardnews/publish">
-                      <input type="hidden" name="draft_id" value="{{ state.recent_draft.id }}">
-                      <button class="button" type="submit">Publish</button>
-                    </form>
-                  </div>
-                </div>
-              </div>
-
-              {% if state.recent_draft.slide_urls %}
-                <div class="thumb-rail">
-                  {% for slide_url in state.recent_draft.slide_urls %}
-                    <button
-                      type="button"
-                      data-topic="{{ state.recent_draft.topic }}"
-                      data-slides='{{ state.recent_draft.slide_urls|tojson|safe }}'
-                      onclick="openViewer(this, {{ loop.index0 }})"
-                    >
-                      <img src="{{ slide_url }}" alt="Slide {{ loop.index }}" loading="lazy">
-                    </button>
-                  {% endfor %}
-                </div>
-              {% endif %}
-            {% else %}
-              <div class="empty-state">No drafts yet. Generate the first deck from a CardNews profile and it will appear here as the main review surface.</div>
-            {% endif %}
-          </article>
-        </div>
-      </section>
-
-      <section id="drafts" class="section">
-        <div class="section-head">
-          <div>
-            <h2>Draft Library</h2>
-            <p>Recent drafts stay compact here. Open one only when you need full-size review.</p>
-          </div>
-        </div>
-
-        {% if state.cardnews_drafts %}
-          <div class="filter-bar" id="draftFilterBar">
-            <button type="button" class="filter-chip is-active" data-filter="all">
-              All <span class="fc-count">{{ state.cardnews_drafts|length }}</span>
-            </button>
-            {% set pub_n = state.cardnews_drafts | selectattr('status','equalto','published') | list | length %}
-            {% set apv_n = state.cardnews_drafts | selectattr('status','equalto','approved')  | list | length %}
-            {% set pnd_n = state.cardnews_drafts | length - pub_n - apv_n %}
-            {% if pnd_n > 0 %}
-            <button type="button" class="filter-chip" data-filter="pending">
-              Pending <span class="fc-count">{{ pnd_n }}</span>
-            </button>
-            {% endif %}
-            {% if apv_n > 0 %}
-            <button type="button" class="filter-chip" data-filter="approved">
-              Approved <span class="fc-count">{{ apv_n }}</span>
-            </button>
-            {% endif %}
-            {% if pub_n > 0 %}
-            <button type="button" class="filter-chip" data-filter="published">
-              Published <span class="fc-count">{{ pub_n }}</span>
-            </button>
-            {% endif %}
-          </div>
-
-          <div class="draft-list" id="draftList">
-            {% for draft in state.cardnews_drafts[:3] %}
-              <article class="draft-row" data-status="{{ draft.status }}">
-                <div class="draft-row-thumb">
-                  {% if draft.slide_urls %}
-                    <button
-                      type="button"
-                      data-topic="{{ draft.topic }}"
-                      data-slides='{{ draft.slide_urls|tojson|safe }}'
-                      onclick="openViewer(this)"
-                    >
-                      <img src="{{ draft.slide_urls[0] }}" alt="{{ draft.topic }}" loading="lazy">
-                    </button>
-                  {% endif %}
-                </div>
-                <div class="draft-row-main">
-                  <div class="draft-row-meta">
-                    <span>{{ draft.profile_nickname }}</span>
-                    <span>{{ draft.created_at }}</span>
-                    <span>{{ draft.slide_count_label }}</span>
-                  </div>
-                  <h3 class="draft-row-title">{{ draft.topic }}</h3>
-                  <p class="draft-row-summary">{{ draft.review.summary }}</p>
-                  <div class="chip-row">
-                    <span class="chip">{{ draft.status }}</span>
-                    <span class="chip {% if draft.review.status == 'flag' %}warn{% elif draft.review.status == 'pass' %}ok{% else %}muted{% endif %}">{{ draft.review.status }}</span>
-                    {% if draft.issue_count %}
-                      <span class="chip warn">{{ draft.issue_count }} issue{% if draft.issue_count != 1 %}s{% endif %}</span>
-                    {% endif %}
-                    {% for channel in draft.channels %}
-                      <span class="chip muted">{{ channel }}</span>
-                    {% endfor %}
-                  </div>
-                </div>
-                <div class="draft-row-actions">
-                  {% if draft.slide_urls %}
-                    <button
-                      type="button"
                       class="inline-button"
-                      data-topic="{{ draft.topic }}"
-                      data-slides='{{ draft.slide_urls|tojson|safe }}'
+                      data-topic="{{ state.recent_draft.topic }}"
+                      data-slides='{{ state.recent_draft.slide_urls|tojson|safe }}'
                       onclick="openViewer(this)"
-                    >Open</button>
+                    >Open Deck</button>
                   {% endif %}
                   <form method="post" action="/cardnews/approve">
-                    <input type="hidden" name="draft_id" value="{{ draft.id }}">
+                    <input type="hidden" name="draft_id" value="{{ state.recent_draft.id }}">
                     <button class="button-secondary" type="submit">Approve</button>
                   </form>
                   <form method="post" action="/cardnews/publish">
-                    <input type="hidden" name="draft_id" value="{{ draft.id }}">
+                    <input type="hidden" name="draft_id" value="{{ state.recent_draft.id }}">
                     <button class="button" type="submit">Publish</button>
                   </form>
                 </div>
-              </article>
-            {% endfor %}
-          </div>
 
-          {% if state.cardnews_drafts|length > 3 %}
-            <details class="legacy-group">
-              <summary>Older Drafts · {{ state.cardnews_drafts|length - 3 }}</summary>
-              <div class="legacy-body">
-                <div class="compact-draft-list">
-                  {% for draft in state.cardnews_drafts[3:] %}
-                    <article class="compact-draft-row" data-status="{{ draft.status }}">
-                      <div>
-                        <h4>{{ draft.topic }}</h4>
-                        <p>{{ draft.created_at }} · {{ draft.format }} · {{ draft.slide_count_label }} · {{ draft.review.status }}</p>
-                      </div>
-                      <div class="compact-draft-actions">
-                        {% if draft.slide_urls %}
-                          <button
-                            type="button"
-                            class="inline-button"
-                            data-topic="{{ draft.topic }}"
-                            data-slides='{{ draft.slide_urls|tojson|safe }}'
-                            onclick="openViewer(this)"
-                          >Open</button>
-                        {% endif %}
-                        <form method="post" action="/cardnews/approve">
-                          <input type="hidden" name="draft_id" value="{{ draft.id }}">
-                          <button class="button-secondary" type="submit">Approve</button>
-                        </form>
-                      </div>
-                    </article>
-                  {% endfor %}
-                </div>
-              </div>
-            </details>
-          {% endif %}
-        {% else %}
-          <div class="empty-state">No CardNews drafts yet.</div>
-        {% endif %}
-      </section>
-
-      <section id="profiles" class="section">
-        <div class="section-head">
-          <div>
-            <h2>Profiles</h2>
-            <p>Keep this list short. Add a new profile only when the niche, language, or destination channel changes.</p>
-          </div>
-        </div>
-
-        {% if state.cardnews_profiles %}
-          <div class="profiles-grid">
-            {% for profile in state.cardnews_profiles %}
-              <article class="profile-card">
-                <p class="eyebrow">CardNews Profile</p>
-                <h3>{{ profile.nickname }}</h3>
-                <div class="profile-meta">
-                  <div><strong>Niche:</strong> {{ profile.niche }}</div>
-                  <div><strong>Language:</strong> {{ profile.language }}</div>
-                  <div><strong>Channels:</strong> {{ profile.channels|join(', ') }}</div>
-                </div>
-                <div class="profile-actions">
-                  <form method="post" action="/accounts/cardnews/delete">
-                    <input type="hidden" name="profile_id" value="{{ profile.id }}">
-                    <button class="button-secondary" type="submit">Delete</button>
-                  </form>
-                </div>
-              </article>
-            {% endfor %}
-          </div>
-        {% else %}
-          <div class="empty-state">No CardNews profiles yet.</div>
-        {% endif %}
-      </section>
-
-      <section id="settings" class="section">
-        <div class="section-head">
-          <div>
-            <h2>Stack Settings</h2>
-            <p>Edit model, image backend, defaults, and publishing behavior without leaving the main workspace.</p>
-          </div>
-        </div>
-
-        <form method="post" action="/settings/save" class="settings-shell">
-          <details class="settings-group" open>
-            <summary>
-              <span>LLM Stack</span>
-              <span class="summary-copy">{{ state.llm.provider }}{% if state.llm.active_model %} · {{ state.llm.active_model }}{% endif %}</span>
-            </summary>
-            <div class="settings-body">
-              <div class="field-grid">
-                <div class="field-group">
-                  <label class="field-label" for="s-llm-provider">LLM Provider</label>
-                  <select name="llm_provider" id="s-llm-provider">
-                    {% for provider in state.llm.provider_options %}
-                      <option value="{{ provider }}" {% if state.config.get('llm_provider', 'ollama') == provider %}selected{% endif %}>{{ provider }}</option>
+                {% if state.recent_draft.slide_urls %}
+                  <div class="thumb-rail">
+                    {% for slide_url in state.recent_draft.slide_urls %}
+                      <button
+                        type="button"
+                        data-topic="{{ state.recent_draft.topic }}"
+                        data-slides='{{ state.recent_draft.slide_urls|tojson|safe }}'
+                        onclick="openViewer(this, {{ loop.index0 }})"
+                      >
+                        <img src="{{ slide_url }}" alt="Slide {{ loop.index }}" loading="lazy">
+                      </button>
                     {% endfor %}
-                  </select>
-                </div>
-
-                <div class="field-group">
-                  <label class="field-label" for="s-llm-model">LLM Model</label>
-                  <input name="llm_model" id="s-llm-model" value="{{ state.config.get('llm_model', '') or state.config.get('openai_model', '') or state.config.get('ollama_model', '') or state.config.get('gemini_model', '') }}" placeholder="qwen/qwen3-30b-a3b-2507">
-                </div>
-
-                <div class="field-group">
-                  <label class="field-label" for="s-ollama-base-url">Ollama Base URL</label>
-                  <input name="ollama_base_url" id="s-ollama-base-url" value="{{ state.config.get('ollama_base_url', 'http://127.0.0.1:11434') }}">
-                </div>
-
-                <div class="field-group">
-                  <label class="field-label" for="s-openai-base-url">OpenAI / LM Studio Base URL</label>
-                  <input name="openai_base_url" id="s-openai-base-url" value="{{ state.config.get('openai_base_url', 'http://127.0.0.1:1234/v1') }}">
-                </div>
-
-                <div class="field-group">
-                  <label class="field-label" for="s-openai-api-key">OpenAI API Key</label>
-                  <input name="openai_api_key" id="s-openai-api-key" type="password" placeholder="{% if state.config.get('openai_api_key') %}Leave blank to keep current key{% else %}Set API key or LM Studio placeholder{% endif %}">
-                </div>
-
-                <div class="field-group">
-                  <label class="field-label" for="s-gemini-model">Gemini Model</label>
-                  <input name="gemini_model" id="s-gemini-model" value="{{ state.config.get('gemini_model', 'gemini-2.5-flash') }}">
-                </div>
-
-                <div class="field-group field-span-2">
-                  <label class="field-label" for="s-gemini-api-key">Gemini API Key</label>
-                  <input name="gemini_api_key" id="s-gemini-api-key" type="password" placeholder="{% if state.config.get('gemini_api_key') %}Leave blank to keep current key{% else %}Set Gemini API key{% endif %}">
-                </div>
+                  </div>
+                {% endif %}
               </div>
             </div>
-          </details>
+          {% else %}
+            <div class="empty-state">No drafts yet. Generate the first deck from the compose workspace and it will appear here for review.</div>
+          {% endif %}
+        </section>
 
-          <details class="settings-group">
-            <summary>
-              <span>Image Backend</span>
-              <span class="summary-copy">{{ state.image.config.provider }}{% if state.image.config.provider == 'comfyui' %} · {{ state.image.config.comfyui.checkpoint or 'No checkpoint' }}{% endif %}</span>
-            </summary>
-            <div class="settings-body">
+        <section id="drafts" class="surface">
+          <div class="surface-head">
+            <div>
+              <p class="eyebrow">Library</p>
+              <h3>Draft Library</h3>
+            </div>
+            <p class="surface-copy">Recent drafts stay compact here. Open one only when you need full-size review.</p>
+          </div>
+
+          {% if state.cardnews_drafts %}
+            <div class="filter-bar" id="draftFilterBar">
+              <button type="button" class="filter-chip is-active" data-filter="all">
+                All <span class="fc-count">{{ state.cardnews_drafts|length }}</span>
+              </button>
+              {% if pending_count > 0 %}
+                <button type="button" class="filter-chip" data-filter="pending">
+                  Pending <span class="fc-count">{{ pending_count }}</span>
+                </button>
+              {% endif %}
+              {% if approved_count > 0 %}
+                <button type="button" class="filter-chip" data-filter="approved">
+                  Approved <span class="fc-count">{{ approved_count }}</span>
+                </button>
+              {% endif %}
+              {% if published_count > 0 %}
+                <button type="button" class="filter-chip" data-filter="published">
+                  Published <span class="fc-count">{{ published_count }}</span>
+                </button>
+              {% endif %}
+            </div>
+
+            <div class="draft-list" id="draftList">
+              {% for draft in state.cardnews_drafts[:4] %}
+                <article class="draft-row" data-status="{{ draft.status }}">
+                  <div class="draft-row-thumb">
+                    {% if draft.slide_urls %}
+                      <button
+                        type="button"
+                        data-topic="{{ draft.topic }}"
+                        data-slides='{{ draft.slide_urls|tojson|safe }}'
+                        onclick="openViewer(this)"
+                      >
+                        <img src="{{ draft.slide_urls[0] }}" alt="{{ draft.topic }}" loading="lazy">
+                      </button>
+                    {% else %}
+                      <div class="draft-thumb-placeholder">No preview</div>
+                    {% endif %}
+                  </div>
+                  <div class="draft-row-main">
+                    <div class="draft-row-meta">
+                      <span>{{ draft.profile_nickname }}</span>
+                      <span>{{ draft.created_at }}</span>
+                      <span>{{ draft.slide_count_label }}</span>
+                    </div>
+                    <h4 class="draft-row-title">{{ draft.topic }}</h4>
+                    <p class="draft-row-summary">{{ draft.review.summary }}</p>
+                    <div class="chip-row">
+                      <span class="chip">{{ draft.status }}</span>
+                      <span class="chip {% if draft.review.status == 'flag' %}warn{% elif draft.review.status == 'pass' %}ok{% else %}muted{% endif %}">{{ draft.review.status }}</span>
+                      {% if draft.issue_count %}
+                        <span class="chip warn">{{ draft.issue_count }} issue{% if draft.issue_count != 1 %}s{% endif %}</span>
+                      {% endif %}
+                      {% for channel in draft.channels %}
+                        <span class="chip muted">{{ channel }}</span>
+                      {% endfor %}
+                    </div>
+                  </div>
+                  <div class="draft-row-actions">
+                    {% if draft.slide_urls %}
+                      <button
+                        type="button"
+                        class="inline-button"
+                        data-topic="{{ draft.topic }}"
+                        data-slides='{{ draft.slide_urls|tojson|safe }}'
+                        onclick="openViewer(this)"
+                      >Open</button>
+                    {% endif %}
+                    <form method="post" action="/cardnews/approve">
+                      <input type="hidden" name="draft_id" value="{{ draft.id }}">
+                      <button class="button-secondary" type="submit">Approve</button>
+                    </form>
+                    <form method="post" action="/cardnews/publish">
+                      <input type="hidden" name="draft_id" value="{{ draft.id }}">
+                      <button class="button" type="submit">Publish</button>
+                    </form>
+                  </div>
+                </article>
+              {% endfor %}
+            </div>
+
+            {% if state.cardnews_drafts|length > 4 %}
               <details class="legacy-group">
-                <summary>Quick Presets</summary>
+                <summary>Older Drafts · {{ state.cardnews_drafts|length - 4 }}</summary>
                 <div class="legacy-body">
                   <div class="compact-draft-list">
-                    {% for preset in state.image_presets %}
-                      <article class="compact-draft-row">
+                    {% for draft in state.cardnews_drafts[4:] %}
+                      <article class="compact-draft-row" data-status="{{ draft.status }}">
                         <div>
-                          <h4>{{ preset.label }}</h4>
-                          <p>{{ preset.description }}</p>
+                          <h4>{{ draft.topic }}</h4>
+                          <p>{{ draft.created_at }} · {{ draft.format }} · {{ draft.slide_count_label }} · {{ draft.review.status }}</p>
                         </div>
                         <div class="compact-draft-actions">
-                          <form method="post" action="/settings/image-preset">
-                            <input type="hidden" name="preset" value="{{ preset.id }}">
-                            <button class="button-secondary" type="submit">Apply</button>
+                          {% if draft.slide_urls %}
+                            <button
+                              type="button"
+                              class="inline-button"
+                              data-topic="{{ draft.topic }}"
+                              data-slides='{{ draft.slide_urls|tojson|safe }}'
+                              onclick="openViewer(this)"
+                            >Open</button>
+                          {% endif %}
+                          <form method="post" action="/cardnews/approve">
+                            <input type="hidden" name="draft_id" value="{{ draft.id }}">
+                            <button class="button-secondary" type="submit">Approve</button>
                           </form>
                         </div>
                       </article>
@@ -554,196 +433,361 @@
                   </div>
                 </div>
               </details>
-              <div class="field-grid">
-                <div class="field-group">
-                  <label class="field-label" for="s-image-provider">Image Provider</label>
-                  <select name="image_provider" id="s-image-provider">
-                    {% for provider in state.image.provider_options %}
-                      <option value="{{ provider }}" {% if state.image.config.provider == provider %}selected{% endif %}>{{ provider }}</option>
-                    {% endfor %}
-                  </select>
-                </div>
-
-                <div class="field-group">
-                  <label class="field-label" for="s-nb2-model">Gemini Image Model</label>
-                  <input name="nanobanana2_model" id="s-nb2-model" value="{{ state.config.get('nanobanana2_model', state.image.config.gemini.model) }}" placeholder="gemini-3.1-flash-image-preview">
-                </div>
-
-                <div class="field-group field-span-2">
-                  <label class="field-label" for="s-nb2-api-key">Gemini Image API Key</label>
-                  <input name="nanobanana2_api_key" id="s-nb2-api-key" type="password" placeholder="{% if state.config.get('nanobanana2_api_key') %}Leave blank to keep current key{% else %}Set Gemini image key{% endif %}">
-                </div>
-
-                <div class="field-group">
-                  <label class="field-label" for="s-nb2-base-url">Gemini Image Base URL</label>
-                  <input name="nanobanana2_api_base_url" id="s-nb2-base-url" value="{{ state.config.get('nanobanana2_api_base_url', state.image.config.gemini.api_base_url) }}">
-                </div>
-
-                <div class="field-group">
-                  <label class="field-label" for="s-nb2-aspect-ratio">Gemini Aspect Ratio</label>
-                  <input name="nanobanana2_aspect_ratio" id="s-nb2-aspect-ratio" value="{{ state.config.get('nanobanana2_aspect_ratio', state.image.config.gemini.aspect_ratio) }}" placeholder="4:5">
-                </div>
-
-                <div class="field-group">
-                  <label class="field-label" for="s-comfyui-base-url">ComfyUI Base URL</label>
-                  <input name="comfyui_base_url" id="s-comfyui-base-url" value="{{ state.image.config.comfyui.base_url }}" placeholder="http://127.0.0.1:8188">
-                </div>
-
-                <div class="field-group">
-                  <label class="field-label" for="s-comfyui-workflow-path">ComfyUI Workflow Path</label>
-                  <input name="comfyui_workflow_path" id="s-comfyui-workflow-path" value="{{ state.image.config.comfyui.workflow_path }}" placeholder="/absolute/path/to/workflow_api.json">
-                  <p class="field-hint">Leave this blank to use the built-in checkpoint workflow.</p>
-                </div>
-
-                <div class="field-group">
-                  <label class="field-label" for="s-comfyui-checkpoint">ComfyUI Checkpoint</label>
-                  <input name="comfyui_checkpoint" id="s-comfyui-checkpoint" value="{{ state.image.config.comfyui.checkpoint }}" placeholder="flux1-schnell-fp8.safetensors">
-                </div>
-
-                <div class="field-group">
-                  <label class="field-label" for="s-comfyui-sampler">ComfyUI Sampler</label>
-                  <input name="comfyui_sampler_name" id="s-comfyui-sampler" value="{{ state.image.config.comfyui.sampler_name }}" placeholder="euler">
-                </div>
-
-                <div class="field-group">
-                  <label class="field-label" for="s-comfyui-steps">ComfyUI Steps</label>
-                  <input name="comfyui_steps" id="s-comfyui-steps" value="{{ state.image.config.comfyui.steps }}">
-                </div>
-
-                <div class="field-group">
-                  <label class="field-label" for="s-comfyui-cfg">ComfyUI CFG</label>
-                  <input name="comfyui_cfg" id="s-comfyui-cfg" value="{{ state.image.config.comfyui.cfg }}">
-                </div>
-
-                <div class="field-group">
-                  <label class="field-label" for="s-comfyui-scheduler">ComfyUI Scheduler</label>
-                  <input name="comfyui_scheduler" id="s-comfyui-scheduler" value="{{ state.image.config.comfyui.scheduler }}" placeholder="normal">
-                </div>
-
-                <div class="field-group field-span-2">
-                  <label class="field-label" for="s-comfyui-neg-prompt">ComfyUI Negative Prompt</label>
-                  <textarea name="comfyui_negative_prompt" id="s-comfyui-neg-prompt" placeholder="low quality, blurry, distorted, watermark, logo, text">{{ state.image.config.comfyui.negative_prompt }}</textarea>
-                  <p class="field-hint">FLUX Schnell usually works without a negative prompt. SDXL tends to benefit from one.</p>
-                </div>
-              </div>
-            </div>
-          </details>
-
-          <details class="settings-group">
-            <summary>
-              <span>CardNews Defaults</span>
-              <span class="summary-copy">{{ state.cardnews_defaults.format }} · {% if state.cardnews_defaults.format == 'poster' %}{{ state.cardnews_defaults.poster_item_count }} items{% else %}{{ state.cardnews_defaults.slides_per_post }} slides{% endif %}</span>
-            </summary>
-            <div class="settings-body">
-              <div class="field-grid">
-                <div class="field-group">
-                  <label class="field-label" for="s-cn-format">Content Format</label>
-                  <select name="cardnews_format" id="s-cn-format">
-                    <option value="carousel" {% if state.cardnews_defaults.format == 'carousel' %}selected{% endif %}>carousel</option>
-                    <option value="poster" {% if state.cardnews_defaults.format == 'poster' %}selected{% endif %}>poster</option>
-                  </select>
-                </div>
-
-                <div class="field-group">
-                  <label class="field-label" for="s-slides-per-post">Slides Per Post</label>
-                  <input name="slides_per_post" id="s-slides-per-post" value="{{ state.cardnews_defaults.slides_per_post }}">
-                  <p class="field-hint">Used when the content format is `carousel`.</p>
-                </div>
-
-                <div class="field-group">
-                  <label class="field-label" for="s-poster-item-count">Poster Item Count</label>
-                  <input name="poster_item_count" id="s-poster-item-count" value="{{ state.cardnews_defaults.poster_item_count }}">
-                  <p class="field-hint">Used when the content format is `poster`.</p>
-                </div>
-
-                <div class="field-group">
-                  <label class="field-label" for="s-default-channels">Default Channels</label>
-                  <input name="default_channels" id="s-default-channels" value="{{ state.cardnews_defaults.default_channels|join(', ') }}">
-                </div>
-
-                <div class="field-group">
-                  <label class="field-label" for="s-bg-strategy">Background Strategy</label>
-                  <select name="background_strategy" id="s-bg-strategy">
-                    <option value="deck_pair" {% if state.cardnews_defaults.background_strategy == 'deck_pair' %}selected{% endif %}>deck_pair</option>
-                    <option value="shared_single" {% if state.cardnews_defaults.background_strategy == 'shared_single' %}selected{% endif %}>shared_single</option>
-                    <option value="per_slide" {% if state.cardnews_defaults.background_strategy == 'per_slide' %}selected{% endif %}>per_slide</option>
-                  </select>
-                  <p class="field-hint">`deck_pair` generates two backgrounds per deck, which is the most practical local default.</p>
-                </div>
-
-                <div class="field-group">
-                  <label class="field-label" for="s-bg-style">Background Style</label>
-                  <select name="background_style" id="s-bg-style">
-                    <option value="editorial_abstract" {% if state.cardnews_defaults.background_style == 'editorial_abstract' %}selected{% endif %}>editorial_abstract</option>
-                    <option value="paper_layers" {% if state.cardnews_defaults.background_style == 'paper_layers' %}selected{% endif %}>paper_layers</option>
-                    <option value="minimal_gradient" {% if state.cardnews_defaults.background_style == 'minimal_gradient' %}selected{% endif %}>minimal_gradient</option>
-                  </select>
-                </div>
-
-                <div class="field-group field-span-2">
-                  <label class="field-label">Review Policy</label>
-                  <label class="checkbox-row">
-                    <input type="checkbox" name="review_required" {% if state.cardnews_defaults.review_required %}checked{% endif %}>
-                    <span>Require approval before publishing</span>
-                  </label>
-                </div>
-              </div>
-            </div>
-          </details>
-
-          <details class="settings-group">
-            <summary>
-              <span>Publishing Bridge</span>
-              <span class="summary-copy">{% if state.config.get('post_bridge', {}).get('enabled') %}Enabled{% else %}Disabled{% endif %}</span>
-            </summary>
-            <div class="settings-body">
-              <div class="field-grid">
-                <div class="field-group">
-                  <label class="field-label">Bridge Status</label>
-                  <label class="checkbox-row">
-                    <input type="checkbox" name="post_bridge_enabled" {% if state.config.get('post_bridge', {}).get('enabled') %}checked{% endif %}>
-                    <span>Enable Post Bridge publishing</span>
-                  </label>
-                </div>
-
-                <div class="field-group">
-                  <label class="field-label">Crosspost Policy</label>
-                  <label class="checkbox-row">
-                    <input type="checkbox" name="post_bridge_auto_crosspost" {% if state.config.get('post_bridge', {}).get('auto_crosspost') %}checked{% endif %}>
-                    <span>Auto crosspost after publish</span>
-                  </label>
-                </div>
-              </div>
-            </div>
-          </details>
-
-          <div class="form-actions">
-            <button class="button" type="submit">Save Settings</button>
-          </div>
-        </form>
+            {% endif %}
+          {% else %}
+            <div class="empty-state">No CardNews drafts yet.</div>
+          {% endif %}
+        </section>
       </section>
 
-      <section class="section">
-        <details class="legacy-group">
-          <summary>Legacy YouTube Accounts</summary>
-          <div class="legacy-body">
-            <p class="compact-note">This area is still available for reference, but it is intentionally collapsed so it does not compete with CardNews work.</p>
-            {% if state.youtube_accounts %}
-              <div class="accounts-grid">
-                {% for account in state.youtube_accounts %}
-                  <article class="account-card">
-                    <p class="eyebrow">YouTube Account</p>
-                    <h3>{{ account.nickname }}</h3>
-                    <p>{{ account.niche }}</p>
-                    <p>{{ account.language }}</p>
+      <section id="profilesPanel" class="tab-panel" data-panel="profiles" role="tabpanel" aria-labelledby="tabProfiles">
+        <div class="section-intro">
+          <p class="eyebrow">Profiles</p>
+          <h2>Editorial presets and destinations</h2>
+          <p>Profiles define niche, language, and channel defaults. Keep the list short so generation stays predictable.</p>
+        </div>
+
+        <div id="profiles" class="profiles-layout">
+          <section class="surface">
+            <div class="surface-head">
+              <div>
+                <p class="eyebrow">Create</p>
+                <h3>Profile Builder</h3>
+              </div>
+              <p class="surface-copy">A profile should map to one editorial niche and one destination pattern.</p>
+            </div>
+            <form method="post" action="/accounts/cardnews/save">
+              <div class="field-grid">
+                <div class="field-group field-span-2">
+                  <label class="field-label" for="pb-nickname">Nickname</label>
+                  <input name="nickname" id="pb-nickname" placeholder="Finance KR">
+                </div>
+                <div class="field-group field-span-2">
+                  <label class="field-label" for="pb-niche">Niche</label>
+                  <input name="niche" id="pb-niche" placeholder="budgeting for young professionals">
+                </div>
+                <div class="field-group">
+                  <label class="field-label" for="pb-language">Language</label>
+                  <input name="language" id="pb-language" value="Korean">
+                </div>
+                <div class="field-group">
+                  <label class="field-label" for="pb-channels">Channels</label>
+                  <input name="channels" id="pb-channels" value="{{ state.cardnews_defaults.default_channels|join(', ') }}">
+                </div>
+              </div>
+              <div class="form-actions">
+                <button class="button" type="submit">Save Profile</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="surface">
+            <div class="surface-head">
+              <div>
+                <p class="eyebrow">Manage</p>
+                <h3>Profiles</h3>
+              </div>
+              <p class="surface-copy">Delete or review existing presets here.</p>
+            </div>
+
+            {% if state.cardnews_profiles %}
+              <div class="profile-list">
+                {% for profile in state.cardnews_profiles %}
+                  <article class="profile-row">
+                    <div class="profile-row-main">
+                      <h4>{{ profile.nickname }}</h4>
+                      <p>{{ profile.niche }}</p>
+                      <div class="chip-row">
+                        <span class="chip muted">{{ profile.language }}</span>
+                        {% for channel in profile.channels %}
+                          <span class="chip muted">{{ channel }}</span>
+                        {% endfor %}
+                      </div>
+                    </div>
+                    <div class="profile-row-actions">
+                      <form method="post" action="/accounts/cardnews/delete">
+                        <input type="hidden" name="profile_id" value="{{ profile.id }}">
+                        <button class="button-secondary" type="submit">Delete</button>
+                      </form>
+                    </div>
                   </article>
                 {% endfor %}
               </div>
             {% else %}
-              <div class="empty-state">No YouTube accounts configured.</div>
+              <div class="empty-state">No CardNews profiles yet.</div>
             {% endif %}
+          </section>
+        </div>
+      </section>
+
+      <section id="settingsPanel" class="tab-panel" data-panel="settings" role="tabpanel" aria-labelledby="tabSettings">
+        <div class="section-intro">
+          <p class="eyebrow">Settings</p>
+          <h2>Model, image backend, and publishing controls</h2>
+          <p>Everything that changes how the system thinks, renders, and publishes lives here, away from the daily production workspace.</p>
+        </div>
+
+        <section id="settings" class="settings-layout">
+          <div class="settings-summary-grid">
+            <article class="surface summary-surface">
+              <div class="surface-head">
+                <div>
+                  <p class="eyebrow">Current Stack</p>
+                  <h3>Runtime Summary</h3>
+                </div>
+              </div>
+              <div class="summary-list">
+                <div class="summary-row"><span>LLM</span><strong>{{ state.llm.provider }}{% if state.llm.active_model %} · {{ state.llm.active_model }}{% endif %}</strong></div>
+                <div class="summary-row"><span>Image</span><strong>{{ state.image.config.provider }}</strong></div>
+                <div class="summary-row"><span>Format</span><strong>{{ state.cardnews_defaults.format }}</strong></div>
+                <div class="summary-row"><span>Publish</span><strong>{% if state.config.get('post_bridge', {}).get('enabled') %}Enabled{% else %}Disabled{% endif %}</strong></div>
+              </div>
+            </article>
+
+            <article class="surface summary-surface">
+              <div class="surface-head">
+                <div>
+                  <p class="eyebrow">Quick Presets</p>
+                  <h3>Image Backend Presets</h3>
+                </div>
+              </div>
+              <div class="preset-list">
+                {% for preset in state.image_presets %}
+                  <article class="preset-row">
+                    <div>
+                      <h4>{{ preset.label }}</h4>
+                      <p>{{ preset.description }}</p>
+                    </div>
+                    <form method="post" action="/settings/image-preset">
+                      <input type="hidden" name="preset" value="{{ preset.id }}">
+                      <button class="button-secondary" type="submit">Apply</button>
+                    </form>
+                  </article>
+                {% endfor %}
+              </div>
+            </article>
           </div>
-        </details>
+
+          <form method="post" action="/settings/save" class="settings-shell">
+            <details class="settings-group" open>
+              <summary>
+                <span>LLM Stack</span>
+                <span class="summary-copy">{{ state.llm.provider }}{% if state.llm.active_model %} · {{ state.llm.active_model }}{% endif %}</span>
+              </summary>
+              <div class="settings-body">
+                <div class="field-grid">
+                  <div class="field-group">
+                    <label class="field-label" for="s-llm-provider">LLM Provider</label>
+                    <select name="llm_provider" id="s-llm-provider">
+                      {% for provider in state.llm.provider_options %}
+                        <option value="{{ provider }}" {% if state.config.get('llm_provider', 'ollama') == provider %}selected{% endif %}>{{ provider }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label" for="s-llm-model">LLM Model</label>
+                    <input name="llm_model" id="s-llm-model" value="{{ state.config.get('llm_model', '') or state.config.get('openai_model', '') or state.config.get('ollama_model', '') or state.config.get('gemini_model', '') }}" placeholder="qwen/qwen3-30b-a3b-2507">
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label" for="s-ollama-base-url">Ollama Base URL</label>
+                    <input name="ollama_base_url" id="s-ollama-base-url" value="{{ state.config.get('ollama_base_url', 'http://127.0.0.1:11434') }}">
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label" for="s-openai-base-url">OpenAI / LM Studio Base URL</label>
+                    <input name="openai_base_url" id="s-openai-base-url" value="{{ state.config.get('openai_base_url', 'http://127.0.0.1:1234/v1') }}">
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label" for="s-openai-api-key">OpenAI API Key</label>
+                    <input name="openai_api_key" id="s-openai-api-key" type="password" placeholder="{% if state.config.get('openai_api_key') %}Leave blank to keep current key{% else %}Set API key or LM Studio placeholder{% endif %}">
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label" for="s-gemini-model">Gemini Model</label>
+                    <input name="gemini_model" id="s-gemini-model" value="{{ state.config.get('gemini_model', 'gemini-2.5-flash') }}">
+                  </div>
+                  <div class="field-group field-span-2">
+                    <label class="field-label" for="s-gemini-api-key">Gemini API Key</label>
+                    <input name="gemini_api_key" id="s-gemini-api-key" type="password" placeholder="{% if state.config.get('gemini_api_key') %}Leave blank to keep current key{% else %}Set Gemini API key{% endif %}">
+                  </div>
+                </div>
+              </div>
+            </details>
+
+            <details class="settings-group">
+              <summary>
+                <span>Image Backend</span>
+                <span class="summary-copy">{{ state.image.config.provider }}{% if state.image.config.provider == 'comfyui' %} · {{ state.image.config.comfyui.checkpoint or 'No checkpoint' }}{% endif %}</span>
+              </summary>
+              <div class="settings-body">
+                <div class="field-grid">
+                  <div class="field-group">
+                    <label class="field-label" for="s-image-provider">Image Provider</label>
+                    <select name="image_provider" id="s-image-provider">
+                      {% for provider in state.image.provider_options %}
+                        <option value="{{ provider }}" {% if state.image.config.provider == provider %}selected{% endif %}>{{ provider }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label" for="s-nb2-model">Gemini Image Model</label>
+                    <input name="nanobanana2_model" id="s-nb2-model" value="{{ state.config.get('nanobanana2_model', state.image.config.gemini.model) }}" placeholder="gemini-3.1-flash-image-preview">
+                  </div>
+                  <div class="field-group field-span-2">
+                    <label class="field-label" for="s-nb2-api-key">Gemini Image API Key</label>
+                    <input name="nanobanana2_api_key" id="s-nb2-api-key" type="password" placeholder="{% if state.config.get('nanobanana2_api_key') %}Leave blank to keep current key{% else %}Set Gemini image key{% endif %}">
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label" for="s-nb2-base-url">Gemini Image Base URL</label>
+                    <input name="nanobanana2_api_base_url" id="s-nb2-base-url" value="{{ state.config.get('nanobanana2_api_base_url', state.image.config.gemini.api_base_url) }}">
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label" for="s-nb2-aspect-ratio">Gemini Aspect Ratio</label>
+                    <input name="nanobanana2_aspect_ratio" id="s-nb2-aspect-ratio" value="{{ state.config.get('nanobanana2_aspect_ratio', state.image.config.gemini.aspect_ratio) }}" placeholder="4:5">
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label" for="s-comfyui-base-url">ComfyUI Base URL</label>
+                    <input name="comfyui_base_url" id="s-comfyui-base-url" value="{{ state.image.config.comfyui.base_url }}" placeholder="http://127.0.0.1:8188">
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label" for="s-comfyui-workflow-path">ComfyUI Workflow Path</label>
+                    <input name="comfyui_workflow_path" id="s-comfyui-workflow-path" value="{{ state.image.config.comfyui.workflow_path }}" placeholder="/absolute/path/to/workflow_api.json">
+                    <p class="field-hint">Leave this blank to use the built-in checkpoint workflow.</p>
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label" for="s-comfyui-checkpoint">ComfyUI Checkpoint</label>
+                    <input name="comfyui_checkpoint" id="s-comfyui-checkpoint" value="{{ state.image.config.comfyui.checkpoint }}" placeholder="flux1-schnell-fp8.safetensors">
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label" for="s-comfyui-sampler">ComfyUI Sampler</label>
+                    <input name="comfyui_sampler_name" id="s-comfyui-sampler" value="{{ state.image.config.comfyui.sampler_name }}" placeholder="euler">
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label" for="s-comfyui-steps">ComfyUI Steps</label>
+                    <input name="comfyui_steps" id="s-comfyui-steps" value="{{ state.image.config.comfyui.steps }}">
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label" for="s-comfyui-cfg">ComfyUI CFG</label>
+                    <input name="comfyui_cfg" id="s-comfyui-cfg" value="{{ state.image.config.comfyui.cfg }}">
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label" for="s-comfyui-scheduler">ComfyUI Scheduler</label>
+                    <input name="comfyui_scheduler" id="s-comfyui-scheduler" value="{{ state.image.config.comfyui.scheduler }}" placeholder="normal">
+                  </div>
+                  <div class="field-group field-span-2">
+                    <label class="field-label" for="s-comfyui-neg-prompt">ComfyUI Negative Prompt</label>
+                    <textarea name="comfyui_negative_prompt" id="s-comfyui-neg-prompt" placeholder="low quality, blurry, distorted, watermark, logo, text">{{ state.image.config.comfyui.negative_prompt }}</textarea>
+                    <p class="field-hint">FLUX Schnell usually works without a negative prompt. SDXL tends to benefit from one.</p>
+                  </div>
+                </div>
+              </div>
+            </details>
+
+            <details class="settings-group">
+              <summary>
+                <span>CardNews Defaults</span>
+                <span class="summary-copy">{{ state.cardnews_defaults.format }} · {% if state.cardnews_defaults.format == 'poster' %}{{ state.cardnews_defaults.poster_item_count }} items{% else %}{{ state.cardnews_defaults.slides_per_post }} slides{% endif %}</span>
+              </summary>
+              <div class="settings-body">
+                <div class="field-grid">
+                  <div class="field-group">
+                    <label class="field-label" for="s-cn-format">Content Format</label>
+                    <select name="cardnews_format" id="s-cn-format">
+                      <option value="carousel" {% if state.cardnews_defaults.format == 'carousel' %}selected{% endif %}>carousel</option>
+                      <option value="poster" {% if state.cardnews_defaults.format == 'poster' %}selected{% endif %}>poster</option>
+                    </select>
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label" for="s-slides-per-post">Slides Per Post</label>
+                    <input name="slides_per_post" id="s-slides-per-post" value="{{ state.cardnews_defaults.slides_per_post }}">
+                    <p class="field-hint">Used when the content format is <code>carousel</code>.</p>
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label" for="s-poster-item-count">Poster Item Count</label>
+                    <input name="poster_item_count" id="s-poster-item-count" value="{{ state.cardnews_defaults.poster_item_count }}">
+                    <p class="field-hint">Used when the content format is <code>poster</code>.</p>
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label" for="s-default-channels">Default Channels</label>
+                    <input name="default_channels" id="s-default-channels" value="{{ state.cardnews_defaults.default_channels|join(', ') }}">
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label" for="s-bg-strategy">Background Strategy</label>
+                    <select name="background_strategy" id="s-bg-strategy">
+                      <option value="deck_pair" {% if state.cardnews_defaults.background_strategy == 'deck_pair' %}selected{% endif %}>deck_pair</option>
+                      <option value="shared_single" {% if state.cardnews_defaults.background_strategy == 'shared_single' %}selected{% endif %}>shared_single</option>
+                      <option value="per_slide" {% if state.cardnews_defaults.background_strategy == 'per_slide' %}selected{% endif %}>per_slide</option>
+                    </select>
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label" for="s-bg-style">Background Style</label>
+                    <select name="background_style" id="s-bg-style">
+                      <option value="editorial_abstract" {% if state.cardnews_defaults.background_style == 'editorial_abstract' %}selected{% endif %}>editorial_abstract</option>
+                      <option value="public_service_flat" {% if state.cardnews_defaults.background_style == 'public_service_flat' %}selected{% endif %}>public_service_flat</option>
+                      <option value="paper_layers" {% if state.cardnews_defaults.background_style == 'paper_layers' %}selected{% endif %}>paper_layers</option>
+                      <option value="minimal_gradient" {% if state.cardnews_defaults.background_style == 'minimal_gradient' %}selected{% endif %}>minimal_gradient</option>
+                    </select>
+                  </div>
+                  <div class="field-group field-span-2">
+                    <label class="field-label">Review Policy</label>
+                    <label class="checkbox-row">
+                      <input type="checkbox" name="review_required" {% if state.cardnews_defaults.review_required %}checked{% endif %}>
+                      <span>Require approval before publishing</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </details>
+
+            <details class="settings-group">
+              <summary>
+                <span>Publishing Bridge</span>
+                <span class="summary-copy">{% if state.config.get('post_bridge', {}).get('enabled') %}Enabled{% else %}Disabled{% endif %}</span>
+              </summary>
+              <div class="settings-body">
+                <div class="field-grid">
+                  <div class="field-group">
+                    <label class="field-label">Bridge Status</label>
+                    <label class="checkbox-row">
+                      <input type="checkbox" name="post_bridge_enabled" {% if state.config.get('post_bridge', {}).get('enabled') %}checked{% endif %}>
+                      <span>Enable Post Bridge publishing</span>
+                    </label>
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label">Crosspost Policy</label>
+                    <label class="checkbox-row">
+                      <input type="checkbox" name="post_bridge_auto_crosspost" {% if state.config.get('post_bridge', {}).get('auto_crosspost') %}checked{% endif %}>
+                      <span>Auto crosspost after publish</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </details>
+
+            <div class="form-actions">
+              <button class="button" type="submit">Save Settings</button>
+            </div>
+          </form>
+
+          <details class="legacy-group">
+            <summary>Legacy YouTube Accounts</summary>
+            <div class="legacy-body">
+              <p class="surface-copy">This area is kept for compatibility and reference, but it is intentionally separated from the CardNews workflow.</p>
+              {% if state.youtube_accounts %}
+                <div class="account-list">
+                  {% for account in state.youtube_accounts %}
+                    <article class="account-row">
+                      <div>
+                        <h4>{{ account.nickname }}</h4>
+                        <p>{{ account.niche }} · {{ account.language }}</p>
+                      </div>
+                    </article>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <div class="empty-state">No YouTube accounts configured.</div>
+              {% endif %}
+            </div>
+          </details>
+        </section>
       </section>
     </main>
   </div>

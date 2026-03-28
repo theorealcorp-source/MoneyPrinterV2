@@ -148,6 +148,69 @@ class CardNewsGenerationStrategyTests(unittest.TestCase):
         self.assertEqual(slide["poster_items"][0]["illustration_path"], "/tmp/namsan.png")
         self.assertEqual(slide["poster_items"][3]["illustration_path"], "/tmp/bukchon.png")
 
+    @patch("classes.CardNews.get_last_image_generation_error")
+    @patch("classes.CardNews.get_image_provider", return_value="comfyui")
+    @patch("classes.CardNews.render_cardnews_slides")
+    @patch("classes.CardNews.generate_image_asset")
+    @patch("classes.CardNews.get_cardnews_draft")
+    @patch("classes.CardNews.assert_folder_structure")
+    @patch("classes.CardNews.get_cardnews_config")
+    def test_render_draft_stops_after_first_missing_poster_illustration_for_comfyui(
+        self,
+        get_cardnews_config_mock,
+        _assert_folder_structure_mock,
+        get_cardnews_draft_mock,
+        generate_image_asset_mock,
+        _render_cardnews_slides_mock,
+        _get_image_provider_mock,
+        get_last_image_generation_error_mock,
+    ) -> None:
+        get_cardnews_config_mock.return_value = {
+            "format": "poster",
+            "slides_per_post": 1,
+            "poster_item_count": 3,
+            "review_required": True,
+            "default_channels": ["instagram"],
+            "render_width": 1080,
+            "render_height": 1350,
+            "background_strategy": "shared_single",
+            "background_style": "editorial_abstract",
+        }
+        profile = {
+            "id": "profile-1",
+            "nickname": "Travel KR",
+            "niche": "travel",
+            "language": "English",
+            "channels": ["instagram"],
+        }
+        draft = {
+            "id": "draft-1",
+            "format": "poster",
+            "topic": "Seoul must see",
+            "slides": [
+                {
+                    "type": "poster",
+                    "title": "SEOUL MUST SEE",
+                    "body": "A one-page visual guide.",
+                    "poster_items": [
+                        {"label": "Namsan", "sublabel": "Viewpoint", "visual_prompt": "Tower"},
+                        {"label": "Kimchi", "sublabel": "Dish", "visual_prompt": "Kimchi bowl"},
+                        {"label": "Palace", "sublabel": "Landmark", "visual_prompt": "Palace gate"},
+                    ],
+                }
+            ],
+        }
+        get_cardnews_draft_mock.return_value = draft
+        generate_image_asset_mock.side_effect = ["/tmp/poster-bg.png", None, "/tmp/unused.png"]
+        get_last_image_generation_error_mock.return_value = (
+            "ComfyUI timed out after 360 seconds using checkpoint 'flux1-schnell-fp8.safetensors'."
+        )
+
+        with self.assertRaisesRegex(RuntimeError, "timed out after 360 seconds"):
+            CardNews(profile).render_draft("draft-1")
+
+        self.assertEqual(generate_image_asset_mock.call_count, 2)
+
 
 if __name__ == "__main__":
     unittest.main()

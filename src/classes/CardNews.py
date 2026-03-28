@@ -18,6 +18,7 @@ from content_planner import generate_poster_outline
 from content_planner import generate_topic_idea
 from content_planner import review_cardnews_draft
 from image_generator import generate_image_asset
+from image_generator import get_last_image_generation_error
 from post_bridge_integration import publish_cardnews_images
 from status import info
 from status import success
@@ -226,6 +227,11 @@ class CardNews:
                 "Paper-cut editorial background, layered soft shadows, tactile material depth, "
                 "calm premium magazine look, large clean negative space for overlay text."
             )
+        if style == "public_service_flat":
+            return (
+                "Friendly public-service card illustration, soft pastel background, flat editorial characters, "
+                "clean brochure composition, central hero scene, simple shapes, warm accessible tone."
+            )
         if style == "minimal_gradient":
             return (
                 "Minimal gradient editorial background, restrained shapes, smooth tonal transitions, "
@@ -266,6 +272,14 @@ class CardNews:
         )
 
     def _build_poster_background_prompt(self, draft: dict) -> str:
+        if str(self.config.get("background_style", "editorial_abstract")).strip().lower() == "public_service_flat":
+            return (
+                "Single-page public information poster illustration, pastel brochure background, friendly family-safe "
+                "flat editorial style, centered hero characters, clean spacious layout. "
+                f"Topic: {str(draft.get('topic', '')).strip()}. "
+                f"Niche: {self.niche}. Language: {self.language}. "
+                "No text, no letters, no numerals, no logos, no watermark, no UI."
+            )
         return (
             "Single-page infographic background, warm paper texture, light editorial illustration mood, "
             "soft abstract shapes, calm premium print feel, large clean negative space. "
@@ -278,11 +292,19 @@ class CardNews:
         label = str(item.get("label", "")).strip()
         sublabel = str(item.get("sublabel", "")).strip()
         user_prompt = str(item.get("visual_prompt", "")).strip()
-        base_prompt = (
-            "Single isolated editorial illustration, centered subject, plain light backdrop, "
-            "warm travel-poster palette, clean silhouette, simple readable forms, no text, no letters, "
-            "no numerals, no watermark."
-        )
+        style = str(self.config.get("background_style", "editorial_abstract")).strip().lower()
+        if style == "public_service_flat":
+            base_prompt = (
+                "Single isolated flat editorial illustration, friendly public-service brochure style, "
+                "pastel palette, centered subject, simple character shapes, clean light backdrop, "
+                "no text, no letters, no numerals, no watermark."
+            )
+        else:
+            base_prompt = (
+                "Single isolated editorial illustration, centered subject, plain light backdrop, "
+                "warm travel-poster palette, clean silhouette, simple readable forms, no text, no letters, "
+                "no numerals, no watermark."
+            )
         return " ".join(
             part
             for part in [
@@ -333,6 +355,11 @@ class CardNews:
             )
             or ""
         )
+        if not slide_copy["background_path"] and get_image_provider() == "comfyui":
+            raise RuntimeError(
+                get_last_image_generation_error()
+                or "ComfyUI failed while generating the poster background."
+            )
         step += 1
 
         for item_index, item in enumerate(slide_copy.get("poster_items", []), start=1):
@@ -367,6 +394,14 @@ class CardNews:
                 )
                 or ""
             )
+            if not item_copy["illustration_path"] and get_image_provider() == "comfyui":
+                raise RuntimeError(
+                    get_last_image_generation_error()
+                    or (
+                        "ComfyUI failed while generating poster illustration "
+                        f"{item_index}/{len(slide_copy.get('poster_items', []))}."
+                    )
+                )
             poster_items.append(item_copy)
             step += 1
 
@@ -644,10 +679,12 @@ class CardNews:
         if not has_visual_assets:
             provider = get_image_provider()
             if provider == "comfyui":
-                comfyui_config = get_image_generation_config()["comfyui"]
                 raise RuntimeError(
-                    "ComfyUI did not return any images. "
-                    f"Check the server at {comfyui_config['base_url']} and verify the workflow/checkpoint settings."
+                    get_last_image_generation_error()
+                    or (
+                        "ComfyUI did not return any images. "
+                        "Check the server and verify the workflow/checkpoint settings."
+                    )
                 )
             if provider != "none":
                 warning(
@@ -667,6 +704,7 @@ class CardNews:
             self.config["render_width"],
             self.config["render_height"],
             deck_topic=str(draft.get("topic", "")),
+            visual_style=str(self.config.get("background_style", "editorial_abstract")),
         )
 
         for slide, asset_path in zip(rendered_slides, asset_paths):

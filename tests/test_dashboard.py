@@ -1,5 +1,6 @@
 import os
 import sys
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -44,7 +45,7 @@ def _sample_image_config() -> dict:
 @unittest.skipIf(dashboard is None, f"dashboard dependencies missing: {DASHBOARD_IMPORT_ERROR}")
 class DashboardTests(unittest.TestCase):
     @patch("dashboard.get_cardnews_jobs")
-    @patch("dashboard._build_service_statuses")
+    @patch("dashboard.build_service_statuses")
     @patch("dashboard.get_image_generation_config")
     @patch("dashboard.get_active_model")
     @patch("dashboard.get_active_provider")
@@ -192,28 +193,23 @@ class DashboardTests(unittest.TestCase):
     @patch("dashboard.threading.Thread")
     @patch("dashboard.add_cardnews_job")
     @patch("dashboard.ensure_model_selected")
-    @patch("dashboard.get_accounts")
+    @patch("dashboard._find_cardnews_profile")
     @patch("dashboard.ensure_config_file")
     def test_generate_cardnews_starts_background_job_and_redirects(
         self,
         _ensure_config_file_mock,
-        get_accounts_mock,
+        find_cardnews_profile_mock,
         _ensure_model_selected_mock,
         add_cardnews_job_mock,
         thread_mock,
     ) -> None:
-        get_accounts_mock.side_effect = lambda provider: {
-            "youtube": [],
-            "cardnews": [
-                {
-                    "id": "profile-1",
-                    "nickname": "Finance KR",
-                    "niche": "budgeting",
-                    "language": "Korean",
-                    "channels": ["instagram"],
-                }
-            ],
-        }[provider]
+        find_cardnews_profile_mock.return_value = {
+            "id": "profile-1",
+            "nickname": "Finance KR",
+            "niche": "budgeting",
+            "language": "Korean",
+            "channels": ["instagram"],
+        }
 
         app = dashboard.create_app()
         client = app.test_client()
@@ -262,6 +258,31 @@ class DashboardTests(unittest.TestCase):
         payload = response.get_json()
         self.assertEqual(payload["jobs"][0]["status"], "running")
         self.assertEqual(payload["jobs"][0]["progress"], 54)
+
+    @patch("dashboard.ensure_config_file")
+    @patch("dashboard.ROOT_DIR", ROOT_DIR)
+    @patch("dashboard.get_cardnews_draft")
+    def test_serve_artifact_uses_draft_asset_path_when_present(
+        self,
+        get_cardnews_draft_mock,
+        _ensure_config_file_mock,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            image_path = os.path.join(temp_dir, "preview.png")
+            with open(image_path, "wb") as handle:
+                handle.write(b"fake-png")
+
+            get_cardnews_draft_mock.return_value = {
+                "id": "draft-1",
+                "slides": [{"asset_path": image_path}],
+            }
+
+            app = dashboard.create_app()
+            client = app.test_client()
+            response = client.get("/artifacts/draft-1/preview.png")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.mimetype, "image/png")
 
 
 if __name__ == "__main__":
