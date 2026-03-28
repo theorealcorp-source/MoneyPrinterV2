@@ -1,4 +1,5 @@
 import hashlib
+import math
 import os
 import re
 from functools import lru_cache
@@ -84,6 +85,7 @@ SLIDE_TYPE_LABELS = {
     "stat": "KEY POINT",
     "quote": "ONE LINE",
     "cta": "NEXT STEP",
+    "poster": "VISUAL GUIDE",
 }
 
 
@@ -310,6 +312,33 @@ def _draw_text_lines(
     return cursor_y
 
 
+def _draw_centered_text_lines(
+    draw: ImageDraw.ImageDraw,
+    lines: list[str],
+    font: ImageFont.ImageFont,
+    center_x: int,
+    y: int,
+    fill: str,
+    line_height: float,
+) -> int:
+    if not lines:
+        return y
+
+    line_step = int(max(getattr(font, "size", 18) * line_height, getattr(font, "size", 18) + 6))
+    cursor_y = y
+
+    for line in lines:
+        draw.text(
+            (center_x - (_text_width(draw, line, font) // 2), cursor_y),
+            line,
+            font=font,
+            fill=fill,
+        )
+        cursor_y += line_step
+
+    return cursor_y
+
+
 def _draw_pill(
     draw: ImageDraw.ImageDraw,
     text: str,
@@ -357,6 +386,67 @@ def _draw_surface_panel(
     draw.rounded_rectangle(shadow_box, radius=radius, fill=(7, 12, 19, shadow_alpha))
     draw.rounded_rectangle(box, radius=radius, fill=fill, outline=outline, width=2 if outline else 0)
     return Image.alpha_composite(canvas.convert("RGBA"), overlay).convert("RGB")
+
+
+def _fit_image_cover(image: Image.Image, width: int, height: int) -> Image.Image:
+    scale = max(width / max(image.width, 1), height / max(image.height, 1))
+    resized = image.resize(
+        (max(1, int(image.width * scale)), max(1, int(image.height * scale))),
+        Image.Resampling.LANCZOS,
+    )
+    left = max((resized.width - width) // 2, 0)
+    top = max((resized.height - height) // 2, 0)
+    return resized.crop((left, top, left + width, top + height))
+
+
+def _paste_rounded_image(
+    canvas: Image.Image,
+    image_path: str,
+    box: tuple[int, int, int, int],
+    radius: int,
+) -> bool:
+    if not image_path or not os.path.exists(image_path):
+        return False
+
+    fitted = _fit_image_cover(
+        Image.open(image_path).convert("RGB"),
+        max(box[2] - box[0], 1),
+        max(box[3] - box[1], 1),
+    )
+    mask = Image.new("L", (fitted.width, fitted.height), 0)
+    mask_draw = ImageDraw.Draw(mask)
+    mask_draw.rounded_rectangle((0, 0, fitted.width, fitted.height), radius=radius, fill=255)
+    canvas.paste(fitted, (box[0], box[1]), mask)
+    return True
+
+
+def _draw_arrow_path(
+    draw: ImageDraw.ImageDraw,
+    points: list[tuple[int, int]],
+    fill: tuple[int, int, int, int],
+    width: int = 6,
+) -> None:
+    if len(points) < 2:
+        return
+
+    draw.line(points, fill=fill, width=width)
+    end_x, end_y = points[-1]
+    prev_x, prev_y = points[-2]
+    dx = end_x - prev_x
+    dy = end_y - prev_y
+    length = max((dx ** 2 + dy ** 2) ** 0.5, 1)
+    ux = dx / length
+    uy = dy / length
+    arrow_size = 18
+    left = (
+        end_x - int(ux * arrow_size - uy * (arrow_size * 0.55)),
+        end_y - int(uy * arrow_size + ux * (arrow_size * 0.55)),
+    )
+    right = (
+        end_x - int(ux * arrow_size + uy * (arrow_size * 0.55)),
+        end_y - int(uy * arrow_size - ux * (arrow_size * 0.55)),
+    )
+    draw.polygon([(end_x, end_y), left, right], fill=fill)
 
 
 def _derive_bullets(slide: dict) -> list[str]:
@@ -881,6 +971,251 @@ def _render_cta(canvas: Image.Image, slide: dict, theme: dict, index: int, total
     return canvas
 
 
+def _prepare_poster_canvas(width: int, height: int, theme: dict, slide: dict) -> Image.Image:
+    canvas = _vertical_gradient(width, height, theme["surface"], theme["surface_alt"])
+    background = _fit_background(slide.get("background_path", ""), width, height)
+    if background is not None:
+        canvas = Image.blend(canvas, background, alpha=0.18)
+
+    overlay = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+    draw.ellipse(
+        (int(width * -0.08), int(height * 0.04), int(width * 0.30), int(height * 0.30)),
+        fill=_color_with_alpha(theme["accent"], 34),
+    )
+    draw.ellipse(
+        (int(width * 0.70), int(height * 0.62), int(width * 1.06), int(height * 0.96)),
+        fill=_color_with_alpha(theme["accent_alt"], 24),
+    )
+    draw.ellipse(
+        (int(width * 0.58), int(height * 0.02), int(width * 0.96), int(height * 0.28)),
+        fill=_color_with_alpha(theme["surface_alt"], 122),
+    )
+    overlay = overlay.filter(ImageFilter.GaussianBlur(radius=20))
+    return Image.alpha_composite(canvas.convert("RGBA"), overlay).convert("RGB")
+
+
+def _draw_poster_placeholder(
+    canvas: Image.Image,
+    box: tuple[int, int, int, int],
+    theme: dict,
+) -> None:
+    draw = ImageDraw.Draw(canvas)
+    draw.ellipse(
+        (box[0] + 18, box[1] + 18, box[2] - 18, box[3] - 24),
+        fill=_color_with_alpha(theme["surface_alt"], 255),
+    )
+    draw.rounded_rectangle(
+        (
+            box[0] + int((box[2] - box[0]) * 0.22),
+            box[1] + int((box[3] - box[1]) * 0.28),
+            box[2] - int((box[2] - box[0]) * 0.22),
+            box[1] + int((box[3] - box[1]) * 0.70),
+        ),
+        radius=24,
+        fill=_color_with_alpha(theme["accent"], 188),
+    )
+    draw.ellipse(
+        (
+            box[0] + int((box[2] - box[0]) * 0.36),
+            box[1] + int((box[3] - box[1]) * 0.18),
+            box[0] + int((box[2] - box[0]) * 0.64),
+            box[1] + int((box[3] - box[1]) * 0.46),
+        ),
+        fill=_color_with_alpha(theme["accent_alt"], 210),
+    )
+
+
+def _poster_item_boxes(count: int, width: int, height: int) -> list[tuple[int, int, int, int]]:
+    margin = int(width * 0.07)
+    gap_x = int(width * 0.04)
+    gap_y = int(height * 0.024)
+    top = int(height * 0.26)
+    bottom = height - int(height * 0.08)
+    rows = max(2, math.ceil(max(count, 1) / 2))
+    box_width = int((width - (margin * 2) - gap_x) / 2)
+    box_height = int((bottom - top - (gap_y * (rows - 1))) / rows)
+    left_x = margin
+    right_x = margin + box_width + gap_x
+
+    boxes = []
+    for index in range(count):
+        row = index // 2
+        col_in_row = index % 2
+        if row % 2 == 0:
+            x = left_x if col_in_row == 0 else right_x
+        else:
+            x = right_x if col_in_row == 0 else left_x
+        y = top + row * (box_height + gap_y)
+        boxes.append((x, y, x + box_width, y + box_height))
+
+    return boxes
+
+
+def _render_poster(canvas: Image.Image, slide: dict, theme: dict, index: int, total: int) -> Image.Image:
+    width, height = canvas.size
+    canvas = _prepare_poster_canvas(width, height, theme, slide)
+    draw = ImageDraw.Draw(canvas)
+    margin = int(width * 0.07)
+
+    eyebrow_text = str(slide.get("eyebrow", "")).strip() or SLIDE_TYPE_LABELS["poster"]
+    eyebrow_font = _load_font("body", 24, _contains_multilingual_text(eyebrow_text))
+    pill_width = draw.textbbox((0, 0), eyebrow_text, font=eyebrow_font)[2] + 36
+    _draw_pill(
+        draw,
+        eyebrow_text,
+        eyebrow_font,
+        max((width - pill_width) // 2, margin),
+        62,
+        _color_with_alpha(theme["surface"], 236),
+        theme["text"],
+        padding_x=18,
+        padding_y=11,
+    )
+    if total > 1:
+        _draw_page_indicator(draw, width, total, index, theme, light=False)
+
+    title_font, title_lines = _fit_text_block(
+        draw,
+        slide.get("title", ""),
+        "display",
+        int(width * 0.78),
+        3,
+        76,
+        46,
+    )
+    body_font, body_lines = _fit_text_block(
+        draw,
+        slide.get("body", ""),
+        "body",
+        int(width * 0.70),
+        3,
+        28,
+        20,
+    )
+
+    cursor_y = _draw_centered_text_lines(
+        draw,
+        title_lines,
+        title_font,
+        width // 2,
+        132,
+        theme["text"],
+        1.04,
+    )
+    _draw_centered_text_lines(
+        draw,
+        body_lines,
+        body_font,
+        width // 2,
+        cursor_y + 12,
+        theme["muted"],
+        1.34,
+    )
+
+    item_boxes = _poster_item_boxes(len(slide.get("poster_items", [])), width, height)
+    connector_overlay = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
+    connector_draw = ImageDraw.Draw(connector_overlay)
+
+    for item_index in range(len(item_boxes) - 1):
+        current_box = item_boxes[item_index]
+        next_box = item_boxes[item_index + 1]
+        same_row = abs(current_box[1] - next_box[1]) < 12
+
+        if same_row:
+            if current_box[0] < next_box[0]:
+                start = (current_box[2] - 8, current_box[1] + int((current_box[3] - current_box[1]) * 0.32))
+                end = (next_box[0] + 8, next_box[1] + int((next_box[3] - next_box[1]) * 0.32))
+            else:
+                start = (current_box[0] + 8, current_box[1] + int((current_box[3] - current_box[1]) * 0.32))
+                end = (next_box[2] - 8, next_box[1] + int((next_box[3] - next_box[1]) * 0.32))
+            mid_y = start[1] - 24 if current_box[1] < height * 0.55 else start[1] + 24
+            points = [start, ((start[0] + end[0]) // 2, mid_y), end]
+        else:
+            start = (
+                current_box[0] + ((current_box[2] - current_box[0]) // 2),
+                current_box[3] - 12,
+            )
+            end = (
+                next_box[0] + ((next_box[2] - next_box[0]) // 2),
+                next_box[1] + 12,
+            )
+            via_y = (start[1] + end[1]) // 2
+            points = [start, (start[0], via_y), (end[0], via_y), end]
+
+        _draw_arrow_path(
+            connector_draw,
+            points,
+            _color_with_alpha(theme["muted"], 96),
+            width=6,
+        )
+
+    canvas = Image.alpha_composite(canvas.convert("RGBA"), connector_overlay).convert("RGB")
+    draw = ImageDraw.Draw(canvas)
+
+    for item_index, (item, box) in enumerate(zip(slide.get("poster_items", []), item_boxes), start=1):
+        canvas = _draw_surface_panel(
+            canvas,
+            box,
+            _color_with_alpha(theme["light_text"], 208),
+            radius=34,
+            shadow_alpha=16,
+            outline=_color_with_alpha(theme["surface_alt"], 255),
+        )
+        draw = ImageDraw.Draw(canvas)
+
+        badge_box = (box[0] + 14, box[1] + 14, box[0] + 52, box[1] + 52)
+        draw.ellipse(badge_box, fill=theme["accent"])
+        number_font = _load_font("display", 24, False)
+        draw.text((badge_box[0] + 12, badge_box[1] + 7), str(item_index), font=number_font, fill=theme["text"])
+
+        art_box = (box[0] + 22, box[1] + 32, box[2] - 22, box[1] + int((box[3] - box[1]) * 0.58))
+        if not _paste_rounded_image(canvas, str(item.get("illustration_path", "")).strip(), art_box, radius=26):
+            _draw_poster_placeholder(canvas, art_box, theme)
+        draw = ImageDraw.Draw(canvas)
+
+        label_font, label_lines = _fit_text_block(
+            draw,
+            item.get("label", ""),
+            "display",
+            box[2] - box[0] - 34,
+            2,
+            28,
+            20,
+        )
+        sublabel_font, sublabel_lines = _fit_text_block(
+            draw,
+            item.get("sublabel", ""),
+            "body",
+            box[2] - box[0] - 38,
+            2,
+            18,
+            14,
+        )
+
+        label_top = art_box[3] + 18
+        cursor_y = _draw_centered_text_lines(
+            draw,
+            label_lines,
+            label_font,
+            box[0] + ((box[2] - box[0]) // 2),
+            label_top,
+            theme["text"],
+            1.06,
+        )
+        _draw_centered_text_lines(
+            draw,
+            sublabel_lines,
+            sublabel_font,
+            box[0] + ((box[2] - box[0]) // 2),
+            cursor_y + 6,
+            theme["muted"],
+            1.30,
+        )
+
+    return canvas
+
+
 def render_cardnews_slides(
     slides: list[dict],
     output_dir: str,
@@ -920,7 +1255,10 @@ def render_cardnews_slides(
         slide_copy["type"] = slide_type
         slide_copy["topic"] = slide_copy.get("topic", deck_topic)
 
-        canvas = _prepare_canvas(width, height, theme, slide_copy, index)
+        if slide_type == "poster":
+            canvas = _render_poster(Image.new("RGB", (width, height), theme["surface"]), slide_copy, theme, index, total)
+        else:
+            canvas = _prepare_canvas(width, height, theme, slide_copy, index)
 
         if slide_type == "cover":
             canvas = _render_cover(canvas, slide_copy, theme, index, total)

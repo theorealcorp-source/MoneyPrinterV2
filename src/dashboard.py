@@ -1,5 +1,10 @@
 import os
+import subprocess
+import threading
+import time
+from datetime import datetime
 from urllib.parse import urlparse
+from uuid import uuid4
 
 from flask import Flask
 from flask import abort
@@ -12,10 +17,14 @@ from flask import url_for
 import requests
 
 from cache import add_account
+from cache import add_cardnews_job
 from cache import get_accounts
 from cache import get_cardnews_draft
 from cache import get_cardnews_drafts
+from cache import get_cardnews_jobs
+from cache import get_cardnews_job
 from cache import remove_account
+from cache import update_cardnews_job
 from cache import update_account
 from classes.CardNews import CardNews
 from config import ROOT_DIR
@@ -35,6 +44,10 @@ from llm_provider import select_provider_model
 
 
 LOCAL_SERVICE_HOSTS = {"127.0.0.1", "localhost", "::1", "0.0.0.0"}
+COMFYUI_START_SCRIPT = os.path.join(ROOT_DIR, "scripts", "start_comfyui_local.sh")
+COMFYUI_RUNTIME_DIR = os.path.join(ROOT_DIR, ".mp", "runtime")
+COMFYUI_PID_PATH = os.path.join(COMFYUI_RUNTIME_DIR, "comfyui.pid")
+COMFYUI_LOG_PATH = os.path.join(COMFYUI_RUNTIME_DIR, "comfyui.log")
 IMAGE_PRESETS = {
     "flux_fast": {
         "label": "FLUX Fast",
@@ -96,6 +109,7 @@ IMAGE_PRESETS = {
         },
     },
 }
+ACTIVE_JOB_STATUSES = {"queued", "running"}
 
 
 def _parse_bool(raw_value: str | None) -> bool:
@@ -141,14 +155,50 @@ def _build_draft_cards(drafts: list[dict]) -> list[dict]:
         slide_urls = _draft_slide_urls(draft)
         review = draft.get("review", {}) if isinstance(draft.get("review"), dict) else {}
         slides = draft.get("slides", []) if isinstance(draft.get("slides"), list) else []
+        format_mode = str(draft.get("format", "carousel")).strip().lower() or "carousel"
         cards.append(
             {
                 **draft,
+                "format": format_mode,
                 "slide_urls": slide_urls,
                 "slide_count": len(slide_urls),
+                "slide_count_label": (
+                    f"{len(slide_urls)} page" if format_mode == "poster" else f"{len(slide_urls)} slides"
+                ),
                 "issue_count": len(review.get("issues", []) or []),
                 "slide_types": [str(slide.get("type", "slide")) for slide in slides],
                 "primary_title": str(slides[0].get("title", "")) if slides else "",
+            }
+        )
+
+    return cards
+
+
+def _utc_timestamp() -> str:
+    return datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _update_job_status(job_id: str, **updates) -> dict | None:
+    payload = dict(updates)
+    payload["updated_at"] = _utc_timestamp()
+    return update_cardnews_job(job_id, payload)
+
+
+def _build_job_cards(jobs: list[dict]) -> list[dict]:
+    cards = []
+    for job in sorted(jobs, key=lambda item: str(item.get("created_at", "")), reverse=True):
+        status = str(job.get("status", "queued")).strip().lower() or "queued"
+        draft = get_cardnews_draft(str(job.get("draft_id", "")).strip()) if job.get("draft_id") else None
+        slide_urls = _draft_slide_urls(draft) if draft else []
+        progress = int(job.get("progress", 0) or 0)
+        cards.append(
+            {
+                **job,
+                "status": status,
+                "progress": max(0, min(progress, 100)),
+                "is_active": status in ACTIVE_JOB_STATUSES,
+                "slide_urls": slide_urls,
+                "has_preview": bool(slide_urls),
             }
         )
 
@@ -172,6 +222,68 @@ def _probe_service_json(url: str, timeout: float = 2.0) -> dict | None:
         return payload if isinstance(payload, dict) else {}
     except Exception:
         return None
+
+
+def _read_pid_file(pid_path: str) -> int | None:
+    if not os.path.exists(pid_path):
+        return None
+
+    try:
+        with open(pid_path, "r", encoding="utf-8") as handle:
+            return int(handle.read().strip())
+    except (OSError, ValueError):
+        return None
+
+
+def _pid_is_running(pid: int | None) -> bool:
+    if not pid or pid <= 0:
+        return False
+
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
+
+
+def _comfyui_online(base_url: str) -> bool:
+    return _probe_service_json(f"{base_url.rstrip('/')}/system_stats") is not None
+
+
+def _start_comfyui_service(base_url: str) -> tuple[bool, str]:
+    if _comfyui_online(base_url):
+        return True, "ComfyUI is already online."
+
+    if not os.path.exists(COMFYUI_START_SCRIPT):
+        return False, f"ComfyUI start script was not found: {COMFYUI_START_SCRIPT}"
+
+    os.makedirs(COMFYUI_RUNTIME_DIR, exist_ok=True)
+    existing_pid = _read_pid_file(COMFYUI_PID_PATH)
+    if _pid_is_running(existing_pid):
+        return False, "ComfyUI start was requested, but the service is still not responding."
+
+    with open(COMFYUI_LOG_PATH, "a", encoding="utf-8") as log_handle:
+        process = subprocess.Popen(
+            ["bash", COMFYUI_START_SCRIPT],
+            cwd=ROOT_DIR,
+            stdout=log_handle,
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+
+    with open(COMFYUI_PID_PATH, "w", encoding="utf-8") as handle:
+        handle.write(str(process.pid))
+
+    deadline = time.time() + 20
+    while time.time() < deadline:
+        if _comfyui_online(base_url):
+            return True, "ComfyUI is online."
+        if process.poll() is not None:
+            break
+        time.sleep(1.0)
+
+    return False, f"ComfyUI did not come online within 20 seconds. Check {COMFYUI_LOG_PATH}."
 
 
 def _build_service_statuses(config_payload: dict, image_config: dict) -> list[dict]:
@@ -225,9 +337,8 @@ def _build_service_statuses(config_payload: dict, image_config: dict) -> list[di
     image_provider = str(image_config.get("provider", "gemini")).strip().lower()
     if image_provider == "comfyui":
         comfyui_config = image_config["comfyui"]
-        stats = _probe_service_json(
-            f"{str(comfyui_config.get('base_url', 'http://127.0.0.1:8188')).rstrip('/')}/system_stats"
-        )
+        comfyui_base_url = str(comfyui_config.get("base_url", "http://127.0.0.1:8188")).rstrip("/")
+        stats = _probe_service_json(f"{comfyui_base_url}/system_stats")
         device_name = ""
         if stats:
             devices = stats.get("devices", [])
@@ -239,6 +350,8 @@ def _build_service_statuses(config_payload: dict, image_config: dict) -> list[di
                 "kind": "ok" if stats is not None else "warn",
                 "summary": "ComfyUI online" if stats is not None else "ComfyUI offline",
                 "detail": str(comfyui_config.get("checkpoint", "")).strip() or device_name or "No checkpoint selected",
+                "action_url": url_for("start_comfyui_service") if stats is None else "",
+                "action_label": "Start ComfyUI" if stats is None else "",
             }
         )
     elif image_provider == "gemini":
@@ -279,25 +392,97 @@ def _build_service_statuses(config_payload: dict, image_config: dict) -> list[di
 
 
 def _build_overview(draft_cards: list[dict], profiles: list[dict], image_config: dict) -> list[dict]:
-    flagged_count = sum(1 for draft in draft_cards if str(draft.get("review", {}).get("status", "")).lower() == "flag")
-    approved_count = sum(1 for draft in draft_cards if str(draft.get("status", "")).lower() == "approved")
-    reviewed_count = sum(1 for draft in draft_cards if str(draft.get("status", "")).lower() in {"reviewed", "approved", "published"})
+    job_cards = _build_job_cards(get_cardnews_jobs())
+    running_jobs = sum(1 for job in job_cards if job.get("is_active"))
+    flagged_count = sum(
+        1 for draft in draft_cards if str(draft.get("review", {}).get("status", "")).lower() == "flag"
+    )
     active_checkpoint = image_config["comfyui"].get("checkpoint", "") if image_config.get("provider") == "comfyui" else image_config.get("provider", "none")
 
     return [
         {"label": "Profiles", "value": str(len(profiles)), "hint": "Reusable content profiles"},
         {"label": "Drafts", "value": str(len(draft_cards)), "hint": "Stored card decks"},
-        {"label": "Reviewed", "value": str(reviewed_count), "hint": "Ready for approval or publish"},
-        {"label": "Flags", "value": str(flagged_count), "hint": "Drafts needing manual checks"},
-        {"label": "Approved", "value": str(approved_count), "hint": "Approved decks in cache"},
+        {"label": "Running", "value": str(running_jobs), "hint": "Background generation jobs"},
+        {"label": "Flags", "value": str(flagged_count), "hint": "Drafts that need a check"},
         {"label": "Image Stack", "value": str(image_config.get("provider", "none")).upper(), "hint": str(active_checkpoint or "No model selected")},
     ]
+
+
+def _run_cardnews_job(job_id: str, profile: dict, topic_override: str | None, format_mode: str) -> None:
+    try:
+        ensure_model_selected()
+        studio = CardNews(profile)
+        _update_job_status(
+            job_id,
+            status="running",
+            stage="planning",
+            progress=8,
+            message="Generating topic and outline",
+        )
+        draft = studio.create_draft(topic_override=topic_override, format_override=format_mode)
+        _update_job_status(
+            job_id,
+            status="running",
+            stage="review",
+            progress=20,
+            message="Reviewing generated draft",
+            draft_id=draft["id"],
+            topic=draft.get("topic", ""),
+        )
+        draft = studio.review_draft(draft["id"])
+
+        def on_progress(payload: dict) -> None:
+            stage = str(payload.get("stage", "render")).strip() or "render"
+            progress = int(payload.get("progress", 0) or 0)
+            _update_job_status(
+                job_id,
+                status="running",
+                stage=stage,
+                progress=progress,
+                message=str(payload.get("message", "")).strip(),
+                step_current=payload.get("current"),
+                step_total=payload.get("total"),
+                draft_id=draft["id"],
+                topic=draft.get("topic", ""),
+            )
+
+        _update_job_status(
+            job_id,
+            status="running",
+            stage="render",
+            progress=28,
+            message="Preparing final assets",
+            draft_id=draft["id"],
+            topic=draft.get("topic", ""),
+        )
+        draft = studio.render_draft(draft["id"], progress_callback=on_progress)
+        _update_job_status(
+            job_id,
+            status="completed",
+            stage="done",
+            progress=100,
+            message="Draft ready for review",
+            draft_id=draft["id"],
+            topic=draft.get("topic", ""),
+            finished_at=_utc_timestamp(),
+        )
+    except Exception as exc:
+        _update_job_status(
+            job_id,
+            status="failed",
+            stage="error",
+            progress=100,
+            message=str(exc),
+            error=str(exc),
+            finished_at=_utc_timestamp(),
+        )
 
 
 def create_app() -> Flask:
     ensure_config_file()
     template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "templates"))
     app = Flask(__name__, template_folder=template_dir)
+    app.config["TEMPLATES_AUTO_RELOAD"] = True
 
     @app.get("/")
     def dashboard_index():
@@ -305,6 +490,7 @@ def create_app() -> Flask:
         error = request.args.get("error", "")
         config_payload = get_full_config()
         draft_cards = _build_draft_cards(get_cardnews_drafts())
+        job_cards = _build_job_cards(get_cardnews_jobs())
         image_config = get_image_generation_config()
         recent_draft = draft_cards[0] if draft_cards else None
         state = {
@@ -312,6 +498,7 @@ def create_app() -> Flask:
             "youtube_accounts": get_accounts("youtube"),
             "cardnews_profiles": get_accounts("cardnews"),
             "cardnews_drafts": draft_cards,
+            "cardnews_jobs": job_cards,
             "cardnews_defaults": get_cardnews_config(),
             "overview": _build_overview(draft_cards, get_accounts("cardnews"), image_config),
             "service_statuses": _build_service_statuses(config_payload, image_config),
@@ -350,8 +537,13 @@ def create_app() -> Flask:
                 "youtube_accounts": get_accounts("youtube"),
                 "cardnews_profiles": get_accounts("cardnews"),
                 "cardnews_drafts": get_cardnews_drafts(),
+                "cardnews_jobs": get_cardnews_jobs(),
             }
         )
+
+    @app.get("/api/jobs")
+    def api_jobs():
+        return jsonify({"jobs": _build_job_cards(get_cardnews_jobs())})
 
     @app.post("/settings/save")
     def save_settings():
@@ -428,6 +620,17 @@ def create_app() -> Flask:
         except ValueError:
             comfyui_cfg = float(comfyui_current.get("cfg", 4.0))
 
+        try:
+            poster_item_count = int(
+                request.form.get(
+                    "poster_item_count",
+                    str(current.get("cardnews", {}).get("poster_item_count", 6)),
+                )
+                or 6
+            )
+        except ValueError:
+            poster_item_count = int(current.get("cardnews", {}).get("poster_item_count", 6) or 6)
+
         comfyui_sampler_name = str(
             request.form.get(
                 "comfyui_sampler_name",
@@ -474,7 +677,14 @@ def create_app() -> Flask:
                     },
                 },
                 "cardnews": {
+                    "format": str(
+                        request.form.get(
+                            "cardnews_format",
+                            current.get("cardnews", {}).get("format", "carousel"),
+                        )
+                    ).strip().lower(),
                     "slides_per_post": int(request.form.get("slides_per_post", "6") or 6),
+                    "poster_item_count": poster_item_count,
                     "review_required": _parse_bool(request.form.get("review_required")),
                     "default_channels": _parse_channels(request.form.get("default_channels", "")),
                     "background_strategy": str(
@@ -499,6 +709,16 @@ def create_app() -> Flask:
             select_provider(provider)
 
         return redirect(url_for("dashboard_index", notice="Settings saved."))
+
+    @app.post("/services/comfyui/start")
+    def start_comfyui_service():
+        comfyui_base_url = str(
+            get_image_generation_config()["comfyui"].get("base_url", "http://127.0.0.1:8188")
+        ).rstrip("/")
+        ok, message = _start_comfyui_service(comfyui_base_url)
+        if ok:
+            return redirect(url_for("dashboard_index", notice=message))
+        return redirect(url_for("dashboard_index", error=message))
 
     @app.post("/settings/image-preset")
     def apply_image_preset():
@@ -567,6 +787,9 @@ def create_app() -> Flask:
     def generate_cardnews():
         profile_id = str(request.form.get("profile_id", "")).strip()
         topic_override = str(request.form.get("topic_override", "")).strip()
+        format_mode = str(
+            request.form.get("format_mode", get_cardnews_config().get("format", "carousel"))
+        ).strip().lower()
         profile = _find_cardnews_profile(profile_id)
 
         if profile is None:
@@ -574,12 +797,35 @@ def create_app() -> Flask:
 
         try:
             ensure_model_selected()
-            studio = CardNews(profile)
-            draft = studio.prepare_draft(topic_override or None)
+            job = {
+                "id": str(uuid4()),
+                "profile_id": profile_id,
+                "profile_nickname": str(profile.get("nickname", "")).strip(),
+                "topic": topic_override,
+                "format": format_mode,
+                "status": "queued",
+                "stage": "queued",
+                "progress": 2,
+                "message": "Queued for generation",
+                "draft_id": "",
+                "error": "",
+                "step_current": None,
+                "step_total": None,
+                "created_at": _utc_timestamp(),
+                "updated_at": _utc_timestamp(),
+                "finished_at": "",
+            }
+            add_cardnews_job(job)
+            worker = threading.Thread(
+                target=_run_cardnews_job,
+                args=(job["id"], profile, topic_override or None, format_mode),
+                daemon=True,
+            )
+            worker.start()
             return redirect(
                 url_for(
                     "dashboard_index",
-                    notice=f"Generated CardNews draft '{draft.get('topic', '')}'.",
+                    notice="CardNews generation started. Progress is shown in the queue.",
                 )
             )
         except Exception as exc:

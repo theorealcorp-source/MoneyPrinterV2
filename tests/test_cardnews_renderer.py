@@ -51,6 +51,30 @@ class CardNewsRendererTests(unittest.TestCase):
                 self.assertTrue(os.path.exists(asset_path))
                 self.assertGreater(os.path.getsize(asset_path), 0)
 
+    def test_render_cardnews_slides_supports_poster_layout(self) -> None:
+        slides = [
+            {
+                "type": "poster",
+                "eyebrow": "VISUAL GUIDE",
+                "title": "SEOUL MUST SEE",
+                "body": "A one-page visual guide to the city.",
+                "topic": "Seoul must see",
+                "poster_items": [
+                    {"label": "Namsan Tower", "sublabel": "Skyline view", "illustration_path": ""},
+                    {"label": "Kimchi", "sublabel": "Classic side dish", "illustration_path": ""},
+                    {"label": "Gyeongbokgung", "sublabel": "Historic palace", "illustration_path": ""},
+                    {"label": "Bukchon", "sublabel": "Hanok neighborhood", "illustration_path": ""},
+                ],
+            }
+        ]
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            asset_paths = render_cardnews_slides(slides, temp_dir, 1080, 1350, deck_topic="Seoul must see")
+
+            self.assertEqual(len(asset_paths), 1)
+            self.assertTrue(os.path.exists(asset_paths[0]))
+            self.assertGreater(os.path.getsize(asset_paths[0]), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

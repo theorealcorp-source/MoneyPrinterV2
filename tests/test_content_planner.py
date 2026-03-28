@@ -56,6 +56,32 @@ class ContentPlannerTests(unittest.TestCase):
         self.assertEqual(outline["slides"][0]["highlight"], "Cut one leak")
         self.assertEqual(outline["slides"][0]["bullets"], ["Track spending", "Cancel extras"])
 
+    @patch("content_planner.generate_text")
+    def test_generate_poster_outline_normalizes_items(self, generate_text_mock) -> None:
+        generate_text_mock.return_value = """
+        {
+          "topic": "Seoul must see",
+          "caption": "A quick visual route",
+          "headline": "SEOUL MUST SEE",
+          "subheadline": "A one-page visual guide to the city.",
+          "items": [
+            {
+              "label": "Namsan Tower",
+              "sublabel": "City skyline icon",
+              "visual_prompt": "Tower with trees"
+            }
+          ]
+        }
+        """
+
+        outline = content_planner.generate_poster_outline("Seoul must see", "English", 4)
+
+        self.assertEqual(outline["headline"], "SEOUL MUST SEE")
+        self.assertEqual(outline["subheadline"], "A one-page visual guide to the city.")
+        self.assertEqual(len(outline["items"]), 4)
+        self.assertEqual(outline["items"][0]["label"], "Namsan Tower")
+        self.assertEqual(outline["items"][0]["visual_prompt"], "Tower with trees")
+
 
 if __name__ == "__main__":
     unittest.main()

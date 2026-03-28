@@ -115,6 +115,8 @@ class PostBridgeConfigTests(unittest.TestCase):
                 temp_dir,
                 {
                     "cardnews": {
+                        "format": "weird-mode",
+                        "poster_item_count": "oops",
                         "background_strategy": "something-weird",
                         "background_style": "broken-style",
                     }
@@ -124,6 +126,8 @@ class PostBridgeConfigTests(unittest.TestCase):
             with self.patch_config_paths(temp_dir):
                 cardnews_config = config.get_cardnews_config()
 
+        self.assertEqual(cardnews_config["format"], "carousel")
+        self.assertEqual(cardnews_config["poster_item_count"], 6)
         self.assertEqual(cardnews_config["background_strategy"], "deck_pair")
         self.assertEqual(cardnews_config["background_style"], "editorial_abstract")
 

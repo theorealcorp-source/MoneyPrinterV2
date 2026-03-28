@@ -181,9 +181,16 @@ def _generate_with_gemini(prompt: str, output_dir: str, aspect_ratio: str, image
     return None
 
 
-def _poll_comfyui_history(base_url: str, prompt_id: str, timeout_seconds: int) -> dict | None:
+def _poll_comfyui_history(
+    base_url: str,
+    prompt_id: str,
+    timeout_seconds: int,
+    progress_callback=None,
+) -> dict | None:
     deadline = time.time() + timeout_seconds
     history_url = f"{base_url.rstrip('/')}/history/{prompt_id}"
+    started_at = time.time()
+    last_progress_second = -1
 
     while time.time() < deadline:
         response = requests.get(history_url, timeout=30)
@@ -193,12 +200,28 @@ def _poll_comfyui_history(base_url: str, prompt_id: str, timeout_seconds: int) -
         outputs = prompt_history.get("outputs", {})
         if outputs:
             return prompt_history
+        if progress_callback is not None:
+            elapsed_seconds = int(time.time() - started_at)
+            if elapsed_seconds != last_progress_second and elapsed_seconds % 5 == 0:
+                last_progress_second = elapsed_seconds
+                progress_callback(
+                    {
+                        "elapsed_seconds": elapsed_seconds,
+                        "timeout_seconds": timeout_seconds,
+                    }
+                )
         time.sleep(1.2)
 
     return None
 
 
-def _generate_with_comfyui(prompt: str, output_dir: str, aspect_ratio: str, image_config: dict) -> str | None:
+def _generate_with_comfyui(
+    prompt: str,
+    output_dir: str,
+    aspect_ratio: str,
+    image_config: dict,
+    progress_callback=None,
+) -> str | None:
     comfyui_config = copy.deepcopy(image_config["comfyui"])
     width, height = ASPECT_RATIO_DIMENSIONS.get(aspect_ratio, (1024, 1024))
     seed = int(uuid4().int % 2_147_483_647)
@@ -235,6 +258,7 @@ def _generate_with_comfyui(prompt: str, output_dir: str, aspect_ratio: str, imag
             comfyui_config["base_url"],
             prompt_id,
             comfyui_config["timeout_seconds"],
+            progress_callback=progress_callback,
         )
         if history is None:
             raise RuntimeError(
@@ -269,6 +293,7 @@ def generate_image_asset(
     output_dir: str,
     aspect_ratio: str = "4:5",
     provider: str | None = None,
+    progress_callback=None,
 ) -> str | None:
     """
     Generate an image using the configured provider.
@@ -292,7 +317,13 @@ def generate_image_asset(
         return _generate_with_gemini(prompt, output_dir, aspect_ratio, image_config)
 
     if selected_provider == "comfyui":
-        return _generate_with_comfyui(prompt, output_dir, aspect_ratio, image_config)
+        return _generate_with_comfyui(
+            prompt,
+            output_dir,
+            aspect_ratio,
+            image_config,
+            progress_callback=progress_callback,
+        )
 
     if get_verbose():
         warning(f"Unknown image generation provider: {selected_provider}")

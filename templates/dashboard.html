@@ -67,7 +67,7 @@
     .layout {
       min-height: 100vh;
       display: grid;
-      grid-template-columns: 300px minmax(0, 1fr);
+      grid-template-columns: 284px minmax(0, 1fr);
     }
 
     .sidebar {
@@ -211,6 +211,12 @@
       color: rgba(237, 243, 246, 0.74);
     }
 
+    button.status-pill {
+      border: 0;
+      cursor: pointer;
+      font: inherit;
+    }
+
     .service-summary,
     .service-detail,
     .preset-copy {
@@ -252,16 +258,16 @@
     }
 
     .workspace {
-      padding: 30px;
+      padding: 24px;
       display: grid;
-      gap: 22px;
+      gap: 16px;
     }
 
     .masthead {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
-      gap: 20px;
-      padding: 28px 30px;
+      gap: 16px;
+      padding: 22px 24px;
       border-radius: var(--radius-xl);
       background: linear-gradient(145deg, rgba(255, 251, 245, 0.92), rgba(250, 244, 236, 0.76));
       border: 1px solid rgba(255, 255, 255, 0.6);
@@ -279,17 +285,17 @@
 
     .masthead h1 {
       margin: 0 0 10px;
-      font-size: clamp(34px, 5vw, 54px);
-      line-height: 0.95;
+      font-size: clamp(28px, 4vw, 42px);
+      line-height: 1;
       letter-spacing: -0.05em;
     }
 
     .masthead p {
       margin: 0;
-      max-width: 58ch;
+      max-width: 62ch;
       color: var(--muted);
-      line-height: 1.65;
-      font-size: 15px;
+      line-height: 1.55;
+      font-size: 14px;
     }
 
     .masthead-actions {
@@ -355,53 +361,105 @@
       color: var(--danger);
     }
 
-    .overview-grid {
-      display: grid;
-      grid-template-columns: repeat(6, minmax(0, 1fr));
-      gap: 14px;
-    }
-
     .metric-card,
     .panel,
-    .deck-card,
     .profile-card,
     .account-card {
       background: linear-gradient(180deg, rgba(255, 253, 248, 0.94), rgba(255, 249, 241, 0.84));
       border: 1px solid rgba(255, 255, 255, 0.58);
       box-shadow: var(--shadow);
       backdrop-filter: blur(18px);
+      transition: transform 180ms ease, box-shadow 180ms ease;
     }
 
-    .metric-card {
-      padding: 18px;
-      border-radius: 22px;
+    .deck-card:hover,
+    .profile-card:hover,
+    .metric-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 28px 72px rgba(28, 38, 49, 0.17);
     }
 
-    .metric-label {
-      margin: 0 0 10px;
-      font-size: 12px;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
-      color: rgba(20, 32, 43, 0.52);
+    .deck-card[data-status="approved"] {
+      border-left: 3px solid var(--success);
     }
 
-    .metric-value {
-      margin: 0 0 6px;
-      font-size: 30px;
-      line-height: 1;
-      letter-spacing: -0.05em;
+    .deck-card[data-status="published"] {
+      border-left: 3px solid var(--accent);
     }
 
-    .metric-hint {
+    .queue-shell {
+      display: grid;
+      gap: 10px;
+    }
+
+    .queue-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .job-card {
+      display: grid;
+      gap: 10px;
+      padding: 16px 18px;
+      border-radius: 20px;
+      background: linear-gradient(180deg, rgba(255, 253, 248, 0.94), rgba(255, 249, 241, 0.84));
+      border: 1px solid rgba(255, 255, 255, 0.58);
+      box-shadow: var(--shadow);
+    }
+
+    .job-head,
+    .job-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .job-head strong {
+      font-size: 18px;
+      letter-spacing: -0.02em;
+    }
+
+    .job-kicker {
       margin: 0;
-      font-size: 13px;
-      line-height: 1.55;
+      font-size: 12px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(20, 32, 43, 0.5);
+    }
+
+    .job-copy,
+    .compact-note {
+      margin: 0;
       color: var(--muted);
+      line-height: 1.55;
+      font-size: 13px;
+    }
+
+    .job-progress {
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(20, 32, 43, 0.08);
+      overflow: hidden;
+    }
+
+    .job-progress-bar {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--accent), #57b9a9);
+      transition: width 240ms ease;
+    }
+
+    .job-link {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent-strong);
     }
 
     .section {
       display: grid;
-      gap: 16px;
+      gap: 14px;
     }
 
     .section-head {
@@ -426,13 +484,17 @@
 
     .compose-grid {
       display: grid;
-      grid-template-columns: 360px 360px minmax(0, 1fr);
-      gap: 18px;
+      grid-template-columns: 360px minmax(0, 1fr);
+      gap: 14px;
       align-items: start;
     }
 
+    .compose-rail {
+      display: grid;
+      gap: 14px;
+    }
+
     .panel,
-    .deck-card,
     .profile-card,
     .account-card {
       border-radius: var(--radius-xl);
@@ -556,7 +618,7 @@
 
     .spotlight {
       display: grid;
-      gap: 16px;
+      gap: 12px;
       min-height: 100%;
     }
 
@@ -599,7 +661,7 @@
 
     .spotlight-copy {
       display: grid;
-      gap: 12px;
+      gap: 10px;
     }
 
     .topic {
@@ -627,10 +689,10 @@
       align-items: center;
       gap: 6px;
       border-radius: 999px;
-      padding: 8px 12px;
+      padding: 7px 11px;
       background: rgba(20, 32, 43, 0.06);
       color: rgba(20, 32, 43, 0.78);
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
     }
 
@@ -694,42 +756,165 @@
       border: 2px solid transparent;
     }
 
-    .draft-grid,
     .profiles-grid,
     .accounts-grid {
       display: grid;
       gap: 18px;
     }
 
-    .draft-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .deck-card {
+    .draft-list,
+    .compact-draft-list {
       display: grid;
-      gap: 16px;
+      gap: 10px;
     }
 
-    .deck-cover {
-      background: #efe7db;
-      border-radius: 24px;
-      padding: 14px;
+    .draft-row,
+    .compact-draft-row {
+      display: grid;
+      grid-template-columns: 72px minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.62);
       border: 1px solid rgba(20, 32, 43, 0.08);
     }
 
-    .deck-topline {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      align-items: center;
-      font-size: 12px;
-      color: rgba(20, 32, 43, 0.58);
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
+    .draft-row-thumb {
+      width: 72px;
+      height: 90px;
+      border-radius: 14px;
+      overflow: hidden;
+      background: rgba(20, 32, 43, 0.06);
+      border: 1px solid rgba(20, 32, 43, 0.08);
     }
 
-    .deck-summary {
+    .draft-row-thumb button {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      padding: 0;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .draft-row-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .draft-row-main {
+      display: grid;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .draft-row-title {
+      margin: 0;
+      font-size: 16px;
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .draft-row-summary {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .draft-row-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      color: rgba(20, 32, 43, 0.56);
+      font-size: 12px;
+    }
+
+    .compact-draft-row h4 {
+      margin: 0 0 4px;
+      font-size: 16px;
+      letter-spacing: -0.02em;
+    }
+
+    .compact-draft-row p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .draft-row-actions,
+    .compact-draft-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: end;
+    }
+
+    .stack-brief {
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      display: grid;
+      gap: 8px;
+    }
+
+    .stack-brief p {
+      margin: 0;
+      color: rgba(237, 243, 246, 0.7);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .queue-history {
+      border-radius: 18px;
+      background: rgba(255,255,255,0.54);
+      border: 1px solid rgba(20, 32, 43, 0.08);
+      overflow: hidden;
+    }
+
+    .queue-history summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 14px 16px;
+      font-size: 13px;
+      font-weight: 700;
+      color: rgba(20, 32, 43, 0.76);
+    }
+
+    .queue-history summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .queue-history-list {
+      display: grid;
+      gap: 8px;
+      padding: 0 16px 16px;
+    }
+
+    .queue-history-row {
+      display: grid;
+      gap: 4px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.7);
+      border: 1px solid rgba(20, 32, 43, 0.06);
+    }
+
+    .queue-history-row strong {
       font-size: 14px;
+      letter-spacing: -0.01em;
     }
 
     .deck-actions form,
@@ -804,6 +989,28 @@
       font-size: 14px;
     }
 
+    details.legacy-group {
+      border-radius: 22px;
+      background: rgba(255,255,255,0.54);
+      border: 1px solid rgba(20, 32, 43, 0.08);
+      overflow: hidden;
+    }
+
+    details.legacy-group summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 18px 20px;
+      font-weight: 700;
+    }
+
+    details.legacy-group summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .legacy-body {
+      padding: 0 20px 20px;
+    }
+
     .empty-state {
       padding: 26px;
       border-radius: 24px;
@@ -815,17 +1022,30 @@
     .viewer-modal {
       position: fixed;
       inset: 0;
-      display: none;
+      display: flex;
       align-items: center;
       justify-content: center;
       padding: 24px;
       background: rgba(9, 16, 24, 0.8);
       z-index: 1000;
       backdrop-filter: blur(20px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 200ms ease;
     }
 
     .viewer-modal.is-open {
-      display: flex;
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .viewer-panel {
+      transform: translateY(12px) scale(0.98);
+      transition: transform 200ms ease;
+    }
+
+    .viewer-modal.is-open .viewer-panel {
+      transform: translateY(0) scale(1);
     }
 
     .viewer-panel {
@@ -865,6 +1085,7 @@
     }
 
     .viewer-main {
+      position: relative;
       background: rgba(255,255,255,0.62);
       border-radius: 22px;
       padding: 16px;
@@ -874,6 +1095,39 @@
       justify-content: center;
       border: 1px solid rgba(20, 32, 43, 0.08);
     }
+
+    .viewer-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 44px;
+      height: 44px;
+      border-radius: 999px;
+      border: 1px solid rgba(20, 32, 43, 0.1);
+      background: rgba(255, 255, 255, 0.92);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: var(--ink);
+      box-shadow: 0 4px 12px rgba(20, 32, 43, 0.1);
+      transition: background 140ms ease, transform 140ms ease, opacity 140ms ease;
+      z-index: 2;
+    }
+
+    .viewer-nav:hover:not(:disabled) {
+      background: white;
+      transform: translateY(-50%) scale(1.08);
+    }
+
+    .viewer-nav:disabled {
+      opacity: 0.25;
+      cursor: default;
+    }
+
+    .viewer-nav-prev { left: 16px; }
+    .viewer-nav-next { right: 16px; }
 
     .viewer-main img {
       max-width: 100%;
@@ -911,17 +1165,33 @@
       box-shadow: 0 0 0 5px rgba(13, 139, 128, 0.12);
     }
 
-    @media (max-width: 1440px) {
-      .overview-grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-      }
+    .sidebar::-webkit-scrollbar,
+    .viewer-sidebar::-webkit-scrollbar {
+      width: 4px;
+    }
 
+    .sidebar::-webkit-scrollbar-track,
+    .viewer-sidebar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .sidebar::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.14);
+      border-radius: 999px;
+    }
+
+    .viewer-sidebar::-webkit-scrollbar-thumb {
+      background: rgba(20, 32, 43, 0.14);
+      border-radius: 999px;
+    }
+
+    @media (max-width: 1440px) {
       .compose-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: 1fr;
       }
 
       .spotlight {
-        grid-column: span 2;
+        grid-column: auto;
       }
     }
 
@@ -939,9 +1209,10 @@
 
       .accounts-grid,
       .profiles-grid,
-      .draft-grid,
-      .overview-grid,
+      .queue-list,
       .compose-grid,
+      .draft-row,
+      .compact-draft-row,
       .spotlight-hero,
       .viewer-stage {
         grid-template-columns: 1fr;
@@ -984,6 +1255,16 @@
         grid-template-columns: 1fr;
       }
 
+      .draft-row,
+      .compact-draft-row {
+        grid-template-columns: 1fr;
+      }
+
+      .draft-row-actions,
+      .compact-draft-actions {
+        justify-content: stretch;
+      }
+
       .field-span-2 {
         grid-column: auto;
       }
@@ -1009,7 +1290,7 @@
       <section class="sidebar-section">
         <p class="sidebar-label">Navigate</p>
         <nav class="sidebar-nav">
-          <a href="#compose"><span>Compose</span><span>{{ state.cardnews_profiles|length }}</span></a>
+          <a href="#compose"><span>Compose</span></a>
           <a href="#drafts"><span>Draft Library</span><span>{{ state.cardnews_drafts|length }}</span></a>
           <a href="#profiles"><span>Profiles</span><span>{{ state.cardnews_profiles|length }}</span></a>
           <a href="#settings"><span>Settings</span><span>{{ state.image.config.provider }}</span></a>
@@ -1023,7 +1304,13 @@
             <article class="service-card">
               <div class="service-head">
                 <span class="service-name">{{ item.name }}</span>
-                <span class="status-pill {{ item.kind }}">{{ item.summary }}</span>
+                {% if item.action_url %}
+                  <form method="post" action="{{ item.action_url }}">
+                    <button type="submit" class="status-pill {{ item.kind }}">{{ item.action_label or item.summary }}</button>
+                  </form>
+                {% else %}
+                  <span class="status-pill {{ item.kind }}">{{ item.summary }}</span>
+                {% endif %}
               </div>
               <p class="service-detail">{{ item.detail }}</p>
             </article>
@@ -1032,27 +1319,12 @@
       </section>
 
       <section class="sidebar-section">
-        <p class="sidebar-label">Image Presets</p>
-        <div class="preset-stack">
-          {% for preset in state.image_presets %}
-            <article class="preset-card">
-              <strong>{{ preset.label }}</strong>
-              <p class="preset-copy">{{ preset.description }}</p>
-              <form method="post" action="/settings/image-preset">
-                <input type="hidden" name="preset" value="{{ preset.id }}">
-                <button type="submit">Apply Preset</button>
-              </form>
-            </article>
-          {% endfor %}
+        <p class="sidebar-label">Working Set</p>
+        <div class="stack-brief">
+          <p><strong>LLM</strong> · {{ state.llm.provider }}{% if state.llm.active_model %} · {{ state.llm.active_model }}{% endif %}</p>
+          <p><strong>Image</strong> · {{ state.image.config.provider }}{% if state.image.config.provider == 'comfyui' %} · {{ state.image.config.comfyui.checkpoint or 'No checkpoint' }}{% else %} · {{ state.config.get('nanobanana2_model', '') or 'No model' }}{% endif %}</p>
+          <p><strong>Defaults</strong> · {{ state.cardnews_defaults.format }} · {% if state.cardnews_defaults.format == 'poster' %}{{ state.cardnews_defaults.poster_item_count }} items{% else %}{{ state.cardnews_defaults.slides_per_post }} slides{% endif %}</p>
         </div>
-      </section>
-
-      <section class="sidebar-section">
-        <p class="sidebar-label">Current Stack</p>
-        <p class="sidebar-note">LLM: {{ state.llm.provider }}{% if state.llm.active_model %} · {{ state.llm.active_model }}{% endif %}</p>
-        <p class="sidebar-note">Image: {{ state.image.config.provider }} · {% if state.image.config.provider == 'comfyui' %}{{ state.image.config.comfyui.checkpoint or 'No checkpoint' }}{% else %}{{ state.config.get('nanobanana2_model', '') or 'No model' }}{% endif %}</p>
-        <p class="sidebar-note">Defaults: {{ state.cardnews_defaults.slides_per_post }} slides · {{ state.cardnews_defaults.default_channels|join(', ') }}</p>
-        <p class="sidebar-note">Backgrounds: {{ state.cardnews_defaults.background_strategy }} · {{ state.cardnews_defaults.background_style }}</p>
       </section>
     </aside>
 
@@ -1060,13 +1332,13 @@
       <section class="masthead">
         <div>
           <p class="eyebrow">Operational workspace</p>
-          <h1>Make the next deck readable in seconds.</h1>
-          <p>The dashboard now separates composition, latest draft review, and stack settings. The goal is shorter paths: pick a profile, generate a deck, inspect it at full size, and publish only when the review gate is clean.</p>
+          <h1>Generate, review, and ship without losing the thread.</h1>
+          <p>Use this screen like an operator console: start a job, watch its progress, inspect the latest draft, and only publish after the review state is clean.</p>
         </div>
         <div class="masthead-actions">
-          <a class="button" href="#compose">Start Compose</a>
-          <a class="button-secondary" href="#drafts">Open Drafts</a>
-          <a class="button-ghost" href="#settings">Adjust Stack</a>
+          <a class="button" href="#compose">New Job</a>
+          <a class="button-secondary" href="#drafts">Drafts</a>
+          <a class="button-ghost" href="#settings">Settings</a>
         </div>
       </section>
 
@@ -1077,78 +1349,88 @@
         <div class="feedback error">{{ error }}</div>
       {% endif %}
 
-      <section class="overview-grid">
-        {% for metric in state.overview %}
-          <article class="metric-card">
-            <p class="metric-label">{{ metric.label }}</p>
-            <p class="metric-value">{{ metric.value }}</p>
-            <p class="metric-hint">{{ metric.hint }}</p>
-          </article>
-        {% endfor %}
+      <section id="queue" class="section">
+        <div class="section-head">
+          <div>
+            <h2>Generation Queue</h2>
+            <p>Long image jobs now run in the background. This panel shows the current stage instead of leaving the screen frozen.</p>
+          </div>
+        </div>
+        <div id="jobQueue" class="queue-shell"></div>
       </section>
 
       <section id="compose" class="section">
         <div class="section-head">
           <div>
             <h2>Compose Workspace</h2>
-            <p>Keep the authoring path narrow: generate from a profile, save a new profile only when needed, and use the latest-draft spotlight instead of scanning the whole library first.</p>
+            <p>Start jobs from a saved profile, keep profile edits separate, and use the latest draft as the primary review surface.</p>
           </div>
         </div>
 
         <div class="compose-grid">
-          <article class="panel">
-            <p class="eyebrow">Quick Generate</p>
-            <h3>Build the next draft</h3>
-            <p class="panel-copy">Choose a stored profile and optionally override the topic. The active image preset controls whether the background comes from ComfyUI or Gemini.</p>
-            <form method="post" action="/cardnews/generate">
-              <div class="field-grid single">
-                <div class="field-group">
-                  <label class="field-label">Profile</label>
-                  <select name="profile_id">
-                    {% for profile in state.cardnews_profiles %}
-                      <option value="{{ profile.id }}">{{ profile.nickname }} · {{ profile.niche }}</option>
-                    {% endfor %}
-                  </select>
+          <div class="compose-rail">
+            <article class="panel">
+              <p class="eyebrow">Quick Generate</p>
+              <h3>Build the next draft</h3>
+              <p class="panel-copy">Pick a profile, choose the output format, and queue a background generation job.</p>
+              <form method="post" action="/cardnews/generate" id="generateForm">
+                <div class="field-grid single">
+                  <div class="field-group">
+                    <label class="field-label">Profile</label>
+                    <select name="profile_id">
+                      {% for profile in state.cardnews_profiles %}
+                        <option value="{{ profile.id }}">{{ profile.nickname }} · {{ profile.niche }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label">Format</label>
+                    <select name="format_mode">
+                      <option value="carousel" {% if state.cardnews_defaults.format == 'carousel' %}selected{% endif %}>carousel</option>
+                      <option value="poster" {% if state.cardnews_defaults.format == 'poster' %}selected{% endif %}>poster</option>
+                    </select>
+                    <p class="field-hint">`poster` renders a one-page infographic with illustrated item cards.</p>
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label">Topic Override</label>
+                    <textarea name="topic_override" placeholder="Leave blank to let the planner pick a topic."></textarea>
+                  </div>
                 </div>
-                <div class="field-group">
-                  <label class="field-label">Topic Override</label>
-                  <textarea name="topic_override" placeholder="Leave blank to let the planner pick a topic."></textarea>
+                <div class="form-actions">
+                  <button class="button" id="generateButton" type="submit">Start Generation</button>
                 </div>
-              </div>
-              <div class="form-actions">
-                <button class="button" type="submit">Generate Draft</button>
-              </div>
-            </form>
-          </article>
+              </form>
+            </article>
 
-          <article class="panel">
-            <p class="eyebrow">Profile Builder</p>
-            <h3>Create or tune a profile</h3>
-            <p class="panel-copy">Profiles define the niche, language, and target channels so you do not have to keep re-entering the same distribution intent.</p>
-            <form method="post" action="/accounts/cardnews/save">
-              <div class="field-grid">
-                <div class="field-group field-span-2">
-                  <label class="field-label">Nickname</label>
-                  <input name="nickname" placeholder="Finance KR">
+            <article class="panel">
+              <p class="eyebrow">Profile Builder</p>
+              <h3>Create or tune a profile</h3>
+              <p class="panel-copy">Profiles hold niche, language, and channel defaults so each run starts from a stable editorial setup.</p>
+              <form method="post" action="/accounts/cardnews/save">
+                <div class="field-grid">
+                  <div class="field-group field-span-2">
+                    <label class="field-label">Nickname</label>
+                    <input name="nickname" placeholder="Finance KR">
+                  </div>
+                  <div class="field-group field-span-2">
+                    <label class="field-label">Niche</label>
+                    <input name="niche" placeholder="budgeting for young professionals">
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label">Language</label>
+                    <input name="language" value="Korean">
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label">Channels</label>
+                    <input name="channels" value="{{ state.cardnews_defaults.default_channels|join(', ') }}">
+                  </div>
                 </div>
-                <div class="field-group field-span-2">
-                  <label class="field-label">Niche</label>
-                  <input name="niche" placeholder="budgeting for young professionals">
+                <div class="form-actions">
+                  <button class="button-secondary" type="submit">Save Profile</button>
                 </div>
-                <div class="field-group">
-                  <label class="field-label">Language</label>
-                  <input name="language" value="Korean">
-                </div>
-                <div class="field-group">
-                  <label class="field-label">Channels</label>
-                  <input name="channels" value="{{ state.cardnews_defaults.default_channels|join(', ') }}">
-                </div>
-              </div>
-              <div class="form-actions">
-                <button class="button-secondary" type="submit">Save Profile</button>
-              </div>
-            </form>
-          </article>
+              </form>
+            </article>
+          </div>
 
           <article class="panel spotlight">
             <p class="eyebrow">Latest Draft Spotlight</p>
@@ -1191,8 +1473,12 @@
                       <strong>{{ state.recent_draft.created_at }}</strong>
                     </div>
                     <div class="meta-card">
-                      <label>Slides</label>
-                      <strong>{{ state.recent_draft.slide_count }}</strong>
+                      <label>Format</label>
+                      <strong>{{ state.recent_draft.format }}</strong>
+                    </div>
+                    <div class="meta-card">
+                      <label>Output</label>
+                      <strong>{{ state.recent_draft.slide_count_label }}</strong>
                     </div>
                   </div>
 
@@ -1204,9 +1490,12 @@
 
                   {% if state.recent_draft.review.issues %}
                     <div class="chip-row">
-                      {% for issue in state.recent_draft.review.issues %}
+                      {% for issue in state.recent_draft.review.issues[:2] %}
                         <span class="chip warn">{{ issue }}</span>
                       {% endfor %}
+                      {% if state.recent_draft.review.issues|length > 2 %}
+                        <span class="chip muted">+{{ state.recent_draft.review.issues|length - 2 }} more</span>
+                      {% endif %}
                     </div>
                   {% endif %}
 
@@ -1257,20 +1546,15 @@
         <div class="section-head">
           <div>
             <h2>Draft Library</h2>
-            <p>Each deck card focuses on one job: identify the deck quickly, inspect the review state, and open or publish without scanning tiny thumbnails first.</p>
+            <p>Recent drafts stay compact here. Open one only when you need full-size review.</p>
           </div>
         </div>
 
         {% if state.cardnews_drafts %}
-          <div class="draft-grid">
-            {% for draft in state.cardnews_drafts %}
-              <article class="deck-card">
-                <div class="deck-topline">
-                  <span>{{ draft.profile_nickname }}</span>
-                  <span>{{ draft.created_at }}</span>
-                </div>
-
-                <div class="deck-cover">
+          <div class="draft-list">
+            {% for draft in state.cardnews_drafts[:3] %}
+              <article class="draft-row">
+                <div class="draft-row-thumb">
                   {% if draft.slide_urls %}
                     <button
                       type="button"
@@ -1280,45 +1564,28 @@
                     >
                       <img src="{{ draft.slide_urls[0] }}" alt="{{ draft.topic }}">
                     </button>
-                  {% else %}
-                    <div class="empty-state">No preview available.</div>
                   {% endif %}
                 </div>
-
-                <div class="chip-row">
-                  <span class="chip">{{ draft.status }}</span>
-                  <span class="chip {% if draft.review.status == 'flag' %}warn{% elif draft.review.status == 'pass' %}ok{% else %}muted{% endif %}">{{ draft.review.status }}</span>
-                  <span class="chip muted">{{ draft.slide_count }} slides</span>
-                  {% if draft.issue_count %}
-                    <span class="chip warn">{{ draft.issue_count }} issue{% if draft.issue_count != 1 %}s{% endif %}</span>
-                  {% endif %}
-                </div>
-
-                <h3>{{ draft.topic }}</h3>
-                <p class="deck-summary">{{ draft.review.summary }}</p>
-
-                <div class="chip-row">
-                  {% for channel in draft.channels %}
-                    <span class="chip muted">{{ channel }}</span>
-                  {% endfor %}
-                </div>
-
-                {% if draft.slide_urls %}
-                  <div class="thumb-rail">
-                    {% for slide_url in draft.slide_urls[:4] %}
-                      <button
-                        type="button"
-                        data-topic="{{ draft.topic }}"
-                        data-slides='{{ draft.slide_urls|tojson|safe }}'
-                        onclick="openViewer(this, {{ loop.index0 }})"
-                      >
-                        <img src="{{ slide_url }}" alt="Slide {{ loop.index }}">
-                      </button>
+                <div class="draft-row-main">
+                  <div class="draft-row-meta">
+                    <span>{{ draft.profile_nickname }}</span>
+                    <span>{{ draft.created_at }}</span>
+                    <span>{{ draft.slide_count_label }}</span>
+                  </div>
+                  <h3 class="draft-row-title">{{ draft.topic }}</h3>
+                  <p class="draft-row-summary">{{ draft.review.summary }}</p>
+                  <div class="chip-row">
+                    <span class="chip">{{ draft.status }}</span>
+                    <span class="chip {% if draft.review.status == 'flag' %}warn{% elif draft.review.status == 'pass' %}ok{% else %}muted{% endif %}">{{ draft.review.status }}</span>
+                    {% if draft.issue_count %}
+                      <span class="chip warn">{{ draft.issue_count }} issue{% if draft.issue_count != 1 %}s{% endif %}</span>
+                    {% endif %}
+                    {% for channel in draft.channels %}
+                      <span class="chip muted">{{ channel }}</span>
                     {% endfor %}
                   </div>
-                {% endif %}
-
-                <div class="deck-actions">
+                </div>
+                <div class="draft-row-actions">
                   {% if draft.slide_urls %}
                     <button
                       type="button"
@@ -1326,7 +1593,7 @@
                       data-topic="{{ draft.topic }}"
                       data-slides='{{ draft.slide_urls|tojson|safe }}'
                       onclick="openViewer(this)"
-                    >Open Deck</button>
+                    >Open</button>
                   {% endif %}
                   <form method="post" action="/cardnews/approve">
                     <input type="hidden" name="draft_id" value="{{ draft.id }}">
@@ -1340,6 +1607,39 @@
               </article>
             {% endfor %}
           </div>
+
+          {% if state.cardnews_drafts|length > 3 %}
+            <details class="legacy-group">
+              <summary>Older Drafts · {{ state.cardnews_drafts|length - 3 }}</summary>
+              <div class="legacy-body">
+                <div class="compact-draft-list">
+                  {% for draft in state.cardnews_drafts[3:] %}
+                    <article class="compact-draft-row">
+                      <div>
+                        <h4>{{ draft.topic }}</h4>
+                        <p>{{ draft.created_at }} · {{ draft.format }} · {{ draft.slide_count_label }} · {{ draft.review.status }}</p>
+                      </div>
+                      <div class="compact-draft-actions">
+                        {% if draft.slide_urls %}
+                          <button
+                            type="button"
+                            class="inline-button"
+                            data-topic="{{ draft.topic }}"
+                            data-slides='{{ draft.slide_urls|tojson|safe }}'
+                            onclick="openViewer(this)"
+                          >Open</button>
+                        {% endif %}
+                        <form method="post" action="/cardnews/approve">
+                          <input type="hidden" name="draft_id" value="{{ draft.id }}">
+                          <button class="button-secondary" type="submit">Approve</button>
+                        </form>
+                      </div>
+                    </article>
+                  {% endfor %}
+                </div>
+              </div>
+            </details>
+          {% endif %}
         {% else %}
           <div class="empty-state">No CardNews drafts yet.</div>
         {% endif %}
@@ -1349,7 +1649,7 @@
         <div class="section-head">
           <div>
             <h2>Profiles</h2>
-            <p>Profiles are positioned as reusable editorial lenses. You should only create a new one when the niche or language really changes.</p>
+            <p>Keep this list short. Add a new profile only when the niche, language, or destination channel changes.</p>
           </div>
         </div>
 
@@ -1382,7 +1682,7 @@
         <div class="section-head">
           <div>
             <h2>Stack Settings</h2>
-            <p>Settings are grouped by responsibility so the LLM stack, image backend, CardNews defaults, and publishing bridge can be edited without losing the rest of the page.</p>
+            <p>Edit model, image backend, defaults, and publishing behavior without leaving the main workspace.</p>
           </div>
         </div>
 
@@ -1436,12 +1736,33 @@
             </div>
           </details>
 
-          <details class="settings-group" open>
+          <details class="settings-group">
             <summary>
               <span>Image Backend</span>
               <span class="summary-copy">{{ state.image.config.provider }}{% if state.image.config.provider == 'comfyui' %} · {{ state.image.config.comfyui.checkpoint or 'No checkpoint' }}{% endif %}</span>
             </summary>
             <div class="settings-body">
+              <details class="legacy-group">
+                <summary>Quick Presets</summary>
+                <div class="legacy-body">
+                  <div class="compact-draft-list">
+                    {% for preset in state.image_presets %}
+                      <article class="compact-draft-row">
+                        <div>
+                          <h4>{{ preset.label }}</h4>
+                          <p>{{ preset.description }}</p>
+                        </div>
+                        <div class="compact-draft-actions">
+                          <form method="post" action="/settings/image-preset">
+                            <input type="hidden" name="preset" value="{{ preset.id }}">
+                            <button class="button-secondary" type="submit">Apply</button>
+                          </form>
+                        </div>
+                      </article>
+                    {% endfor %}
+                  </div>
+                </div>
+              </details>
               <div class="field-grid">
                 <div class="field-group">
                   <label class="field-label">Image Provider</label>
@@ -1520,13 +1841,28 @@
           <details class="settings-group">
             <summary>
               <span>CardNews Defaults</span>
-              <span class="summary-copy">{{ state.cardnews_defaults.slides_per_post }} slides · {{ state.cardnews_defaults.background_strategy }}</span>
+              <span class="summary-copy">{{ state.cardnews_defaults.format }} · {% if state.cardnews_defaults.format == 'poster' %}{{ state.cardnews_defaults.poster_item_count }} items{% else %}{{ state.cardnews_defaults.slides_per_post }} slides{% endif %}</span>
             </summary>
             <div class="settings-body">
               <div class="field-grid">
                 <div class="field-group">
+                  <label class="field-label">Content Format</label>
+                  <select name="cardnews_format">
+                    <option value="carousel" {% if state.cardnews_defaults.format == 'carousel' %}selected{% endif %}>carousel</option>
+                    <option value="poster" {% if state.cardnews_defaults.format == 'poster' %}selected{% endif %}>poster</option>
+                  </select>
+                </div>
+
+                <div class="field-group">
                   <label class="field-label">Slides Per Post</label>
                   <input name="slides_per_post" value="{{ state.cardnews_defaults.slides_per_post }}">
+                  <p class="field-hint">Used when the content format is `carousel`.</p>
+                </div>
+
+                <div class="field-group">
+                  <label class="field-label">Poster Item Count</label>
+                  <input name="poster_item_count" value="{{ state.cardnews_defaults.poster_item_count }}">
+                  <p class="field-hint">Used when the content format is `poster`.</p>
                 </div>
 
                 <div class="field-group">
@@ -1597,27 +1933,26 @@
       </section>
 
       <section class="section">
-        <div class="section-head">
-          <div>
-            <h2>YouTube Accounts</h2>
-            <p>The legacy account cache still shows here for reference, but the main workspace above is focused on CardNews production.</p>
+        <details class="legacy-group">
+          <summary>Legacy YouTube Accounts</summary>
+          <div class="legacy-body">
+            <p class="compact-note">This area is still available for reference, but it is intentionally collapsed so it does not compete with CardNews work.</p>
+            {% if state.youtube_accounts %}
+              <div class="accounts-grid">
+                {% for account in state.youtube_accounts %}
+                  <article class="account-card">
+                    <p class="eyebrow">YouTube Account</p>
+                    <h3>{{ account.nickname }}</h3>
+                    <p>{{ account.niche }}</p>
+                    <p>{{ account.language }}</p>
+                  </article>
+                {% endfor %}
+              </div>
+            {% else %}
+              <div class="empty-state">No YouTube accounts configured.</div>
+            {% endif %}
           </div>
-        </div>
-
-        {% if state.youtube_accounts %}
-          <div class="accounts-grid">
-            {% for account in state.youtube_accounts %}
-              <article class="account-card">
-                <p class="eyebrow">YouTube Account</p>
-                <h3>{{ account.nickname }}</h3>
-                <p>{{ account.niche }}</p>
-                <p>{{ account.language }}</p>
-              </article>
-            {% endfor %}
-          </div>
-        {% else %}
-          <div class="empty-state">No YouTube accounts configured.</div>
-        {% endif %}
+        </details>
       </section>
     </main>
   </div>
@@ -1633,24 +1968,180 @@
       </div>
       <div class="viewer-stage">
         <div class="viewer-main">
+          <button type="button" class="viewer-nav viewer-nav-prev" id="viewerPrev" onclick="viewerNav(-1)">&#8249;</button>
           <img id="viewerImage" src="" alt="CardNews preview">
+          <button type="button" class="viewer-nav viewer-nav-next" id="viewerNext" onclick="viewerNav(1)">&#8250;</button>
         </div>
         <div id="viewerSidebar" class="viewer-sidebar"></div>
       </div>
     </div>
   </div>
 
+  <script id="initialJobsData" type="application/json">{{ state.cardnews_jobs|tojson|safe }}</script>
   <script>
     let viewerSlides = [];
     let viewerIndex = 0;
+
+    function statusTone(status) {
+      if (status === "completed") return "ok";
+      if (status === "failed") return "warn";
+      if (status === "running" || status === "queued") return "muted";
+      return "muted";
+    }
+
+    function renderJobs(jobs) {
+      const queueRoot = document.getElementById("jobQueue");
+      if (!queueRoot) return;
+
+      queueRoot.innerHTML = "";
+      if (!jobs.length) {
+        const empty = document.createElement("div");
+        empty.className = "empty-state";
+        empty.textContent = "No background jobs are running. Start a generation job and its progress will appear here.";
+        queueRoot.appendChild(empty);
+        return;
+      }
+
+      const activeJobs = jobs.filter((job) => job.is_active);
+      const archivedJobs = jobs.filter((job) => !job.is_active);
+
+      if (!activeJobs.length) {
+        const empty = document.createElement("div");
+        empty.className = "empty-state";
+        empty.textContent = "No generation is running right now. Recent history is tucked below so this panel stays readable.";
+        queueRoot.appendChild(empty);
+      }
+
+      const list = document.createElement("div");
+      list.className = "queue-list";
+
+      activeJobs.slice(0, 2).forEach((job) => {
+        const card = document.createElement("article");
+        card.className = "job-card";
+
+        const head = document.createElement("div");
+        head.className = "job-head";
+
+        const titleWrap = document.createElement("div");
+        const kicker = document.createElement("p");
+        kicker.className = "job-kicker";
+        kicker.textContent = `${job.profile_nickname || "CardNews"} · ${job.format || "carousel"} · ${job.stage || "queued"}`;
+        const title = document.createElement("strong");
+        title.textContent = job.topic || "New draft generation";
+        titleWrap.appendChild(kicker);
+        titleWrap.appendChild(title);
+
+        const pill = document.createElement("span");
+        pill.className = `status-pill ${statusTone(job.status)}`;
+        pill.textContent = job.status || "queued";
+
+        head.appendChild(titleWrap);
+        head.appendChild(pill);
+
+        const copy = document.createElement("p");
+        copy.className = "job-copy";
+        copy.textContent = job.message || "Waiting for progress update.";
+
+        const progressWrap = document.createElement("div");
+        progressWrap.className = "job-progress";
+        const progressBar = document.createElement("div");
+        progressBar.className = "job-progress-bar";
+        progressBar.style.width = `${Math.max(0, Math.min(Number(job.progress || 0), 100))}%`;
+        progressWrap.appendChild(progressBar);
+
+        const meta = document.createElement("div");
+        meta.className = "job-meta";
+        const left = document.createElement("p");
+        left.className = "compact-note";
+        if (job.step_current && job.step_total) {
+          left.textContent = `Step ${job.step_current} / ${job.step_total} · ${job.progress || 0}%`;
+        } else {
+          left.textContent = `${job.progress || 0}% complete`;
+        }
+        meta.appendChild(left);
+
+        if (job.status === "completed" && job.draft_id) {
+          const link = document.createElement("a");
+          link.className = "job-link";
+          link.href = "#drafts";
+          link.textContent = "Open draft library";
+          meta.appendChild(link);
+        } else if (job.status === "failed" && job.error) {
+          const error = document.createElement("span");
+          error.className = "chip warn";
+          error.textContent = job.error;
+          meta.appendChild(error);
+        }
+
+        card.appendChild(head);
+        card.appendChild(copy);
+        card.appendChild(progressWrap);
+        card.appendChild(meta);
+        list.appendChild(card);
+      });
+
+      if (activeJobs.length) {
+        queueRoot.appendChild(list);
+      }
+
+      if (archivedJobs.length) {
+        const details = document.createElement("details");
+        details.className = "queue-history";
+
+        const summary = document.createElement("summary");
+        summary.textContent = `Recent History · ${archivedJobs.length}`;
+        details.appendChild(summary);
+
+        const historyList = document.createElement("div");
+        historyList.className = "queue-history-list";
+
+        archivedJobs.slice(0, 4).forEach((job) => {
+          const row = document.createElement("article");
+          row.className = "queue-history-row";
+
+          const title = document.createElement("strong");
+          title.textContent = job.topic || "Recent generation job";
+
+          const meta = document.createElement("p");
+          meta.className = "compact-note";
+          meta.textContent = `${job.profile_nickname || "CardNews"} · ${job.format || "carousel"} · ${job.status || "completed"}`;
+
+          const copy = document.createElement("p");
+          copy.className = "compact-note";
+          copy.textContent = job.message || job.error || "Finished";
+
+          row.appendChild(title);
+          row.appendChild(meta);
+          row.appendChild(copy);
+          historyList.appendChild(row);
+        });
+
+        details.appendChild(historyList);
+        queueRoot.appendChild(details);
+      }
+    }
+
+    async function pollJobs() {
+      try {
+        const response = await fetch("/api/jobs", { cache: "no-store" });
+        if (!response.ok) return;
+        const payload = await response.json();
+        renderJobs(Array.isArray(payload.jobs) ? payload.jobs : []);
+      } catch (_error) {
+      }
+    }
 
     function renderViewer() {
       const viewerImage = document.getElementById("viewerImage");
       const viewerCount = document.getElementById("viewerCount");
       const viewerSidebar = document.getElementById("viewerSidebar");
+      const prevBtn = document.getElementById("viewerPrev");
+      const nextBtn = document.getElementById("viewerNext");
 
       viewerImage.src = viewerSlides[viewerIndex] || "";
       viewerCount.textContent = viewerSlides.length ? `Slide ${viewerIndex + 1} / ${viewerSlides.length}` : "";
+      if (prevBtn) prevBtn.disabled = viewerIndex === 0;
+      if (nextBtn) nextBtn.disabled = viewerIndex === viewerSlides.length - 1;
       viewerSidebar.innerHTML = "";
 
       viewerSlides.forEach((slide, index) => {
@@ -1683,6 +2174,14 @@
       renderViewer();
     }
 
+    function viewerNav(dir) {
+      const newIndex = viewerIndex + dir;
+      if (newIndex >= 0 && newIndex < viewerSlides.length) {
+        viewerIndex = newIndex;
+        renderViewer();
+      }
+    }
+
     function closeViewer(event) {
       if (event && event.target && event.target !== document.getElementById("viewerModal")) {
         return;
@@ -1707,6 +2206,27 @@
         renderViewer();
       }
     });
+
+    const initialJobsNode = document.getElementById("initialJobsData");
+    if (initialJobsNode) {
+      try {
+        renderJobs(JSON.parse(initialJobsNode.textContent || "[]"));
+      } catch (_error) {
+        renderJobs([]);
+      }
+    }
+
+    const generateForm = document.getElementById("generateForm");
+    const generateButton = document.getElementById("generateButton");
+    if (generateForm && generateButton) {
+      generateForm.addEventListener("submit", () => {
+        generateButton.disabled = true;
+        generateButton.textContent = "Queueing...";
+      });
+    }
+
+    pollJobs();
+    window.setInterval(pollJobs, 2500);
   </script>
 </body>
 </html>

@@ -7,7 +7,7 @@ from status import info
 from status import warning
 
 
-CARDNEWS_SLIDE_TYPES = {"cover", "insight", "list", "stat", "quote", "cta"}
+CARDNEWS_SLIDE_TYPES = {"cover", "insight", "list", "stat", "quote", "cta", "poster"}
 DEFAULT_EYEBROWS = {
     "cover": "SWIPE GUIDE",
     "insight": "WHY IT MATTERS",
@@ -15,6 +15,7 @@ DEFAULT_EYEBROWS = {
     "stat": "KEY POINT",
     "quote": "ONE LINE",
     "cta": "NEXT STEP",
+    "poster": "VISUAL GUIDE",
 }
 
 
@@ -243,6 +244,101 @@ Rules:
         "topic": str(outline.get("topic", topic)).strip() or topic,
         "caption": str(outline.get("caption", topic)).strip() or topic,
         "slides": normalized_slides,
+    }
+
+
+def generate_poster_outline(
+    topic: str,
+    language: str,
+    item_count: int,
+    model_name: str = None,
+) -> dict:
+    """
+    Generate a single-page infographic poster outline.
+
+    Returns:
+        outline (dict): Topic, caption, poster headline and illustrated items
+    """
+    if get_verbose():
+        info(f"Generating poster outline for topic: {topic}")
+
+    prompt = f"""
+You are creating a one-page social-media infographic poster.
+Return only valid JSON with this exact shape:
+{{
+  "topic": "string",
+  "caption": "string",
+  "headline": "string",
+  "subheadline": "string",
+  "items": [
+    {{
+      "label": "string",
+      "sublabel": "string",
+      "visual_prompt": "string"
+    }}
+  ]
+}}
+
+Rules:
+- Output language: {language}
+- Topic: {topic}
+- Create exactly {item_count} items
+- headline must be short, bold, and poster-ready
+- subheadline must be one short sentence
+- each label must be <= 28 characters
+- each sublabel must be <= 44 characters
+- visual_prompt must describe one isolated illustration for that single item
+- all items should feel like one cohesive infographic set
+- items should be easy to scan and visually distinct
+- do not use markdown
+- do not include extra keys
+""".strip()
+
+    outline = generate_json(prompt, model_name=model_name)
+    items = outline.get("items", []) if isinstance(outline, dict) else []
+
+    normalized_items = []
+    for index, item in enumerate(items[:item_count], start=1):
+        label = " ".join(str(item.get("label", "")).strip().split())
+        sublabel = " ".join(str(item.get("sublabel", "")).strip().split())
+        visual_prompt = " ".join(str(item.get("visual_prompt", "")).strip().split())
+
+        if not label:
+            label = f"{topic} {index}"
+        if not visual_prompt:
+            visual_prompt = f"Simple editorial illustration about {label}"
+
+        normalized_items.append(
+            {
+                "label": label[:28],
+                "sublabel": sublabel[:44],
+                "visual_prompt": visual_prompt,
+            }
+        )
+
+    while len(normalized_items) < item_count:
+        fallback_index = len(normalized_items) + 1
+        fallback_label = f"{topic} {fallback_index}"[:28]
+        normalized_items.append(
+            {
+                "label": fallback_label,
+                "sublabel": "Short supporting label"[:44],
+                "visual_prompt": f"Simple editorial illustration about {fallback_label}",
+            }
+        )
+
+    headline = " ".join(str(outline.get("headline", topic)).strip().split()) or topic
+    subheadline = " ".join(str(outline.get("subheadline", "")).strip().split()) or str(
+        outline.get("caption", topic)
+    ).strip()
+    caption = " ".join(str(outline.get("caption", topic)).strip().split()) or topic
+
+    return {
+        "topic": str(outline.get("topic", topic)).strip() or topic,
+        "caption": caption,
+        "headline": headline,
+        "subheadline": subheadline,
+        "items": normalized_items,
     }
 
 

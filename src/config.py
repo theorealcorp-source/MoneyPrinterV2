@@ -743,7 +743,9 @@ def get_cardnews_config() -> dict:
         config (dict): Sanitized CardNews configuration
     """
     defaults = {
+        "format": "carousel",
         "slides_per_post": 6,
+        "poster_item_count": 6,
         "review_required": True,
         "default_channels": ["instagram"],
         "render_width": 1080,
@@ -752,6 +754,7 @@ def get_cardnews_config() -> dict:
         "background_style": "editorial_abstract",
     }
     supported_channels = {"instagram", "tiktok"}
+    supported_formats = {"carousel", "poster"}
     supported_background_strategies = {"per_slide", "deck_pair", "shared_single"}
     supported_background_styles = {"editorial_abstract", "paper_layers", "minimal_gradient"}
 
@@ -776,11 +779,22 @@ def get_cardnews_config() -> dict:
         slides_per_post = defaults["slides_per_post"]
 
     try:
+        poster_item_count = int(
+            raw_config.get("poster_item_count", defaults["poster_item_count"])
+        )
+    except (TypeError, ValueError):
+        poster_item_count = defaults["poster_item_count"]
+
+    try:
         render_width = int(raw_config.get("render_width", defaults["render_width"]))
         render_height = int(raw_config.get("render_height", defaults["render_height"]))
     except (TypeError, ValueError):
         render_width = defaults["render_width"]
         render_height = defaults["render_height"]
+
+    format_mode = str(raw_config.get("format", defaults["format"])).strip().lower()
+    if format_mode not in supported_formats:
+        format_mode = defaults["format"]
 
     background_strategy = str(
         raw_config.get("background_strategy", defaults["background_strategy"])
@@ -794,8 +808,14 @@ def get_cardnews_config() -> dict:
     if background_style not in supported_background_styles:
         background_style = defaults["background_style"]
 
+    normalized_slides = max(3, min(slides_per_post, 12))
+    if format_mode == "poster":
+        normalized_slides = 1
+
     return {
-        "slides_per_post": max(3, min(slides_per_post, 12)),
+        "format": format_mode,
+        "slides_per_post": normalized_slides,
+        "poster_item_count": max(4, min(poster_item_count, 8)),
         "review_required": bool(raw_config.get("review_required", defaults["review_required"])),
         "default_channels": normalized_channels,
         "render_width": max(720, render_width),

@@ -14,6 +14,7 @@ from config import get_image_generation_config
 from config import get_image_provider
 from content_planner import CARDNEWS_SLIDE_TYPES
 from content_planner import generate_cardnews_outline
+from content_planner import generate_poster_outline
 from content_planner import generate_topic_idea
 from content_planner import review_cardnews_draft
 from image_generator import generate_image_asset
@@ -57,15 +58,112 @@ class CardNews:
                 return normalized
         return self.config["default_channels"]
 
+    @property
+    def format_mode(self) -> str:
+        return str(self.config.get("format", "carousel")).strip().lower() or "carousel"
+
     def list_drafts(self) -> list[dict]:
         return get_cardnews_drafts_for_profile(self.profile_id)
 
     def _draft_root(self, draft_id: str) -> str:
         return os.path.join(ROOT_DIR, ".mp", "cardnews", draft_id)
 
+    def _emit_progress(
+        self,
+        progress_callback,
+        *,
+        stage: str,
+        message: str,
+        current: int | None = None,
+        total: int | None = None,
+        progress: int | None = None,
+    ) -> None:
+        if progress_callback is None:
+            return
+
+        computed_progress = progress
+        if computed_progress is None and current is not None and total:
+            computed_progress = int((current / max(total, 1)) * 100)
+
+        progress_callback(
+            {
+                "stage": stage,
+                "message": message,
+                "current": current,
+                "total": total,
+                "progress": max(0, min(int(computed_progress or 0), 100)),
+            }
+        )
+
     def _run_rule_review(self, draft: dict) -> dict:
         issues = []
         slides = draft.get("slides", [])
+        format_mode = str(draft.get("format", self.format_mode)).strip().lower() or "carousel"
+
+        if format_mode == "poster":
+            if len(slides) != 1:
+                issues.append(f"Expected 1 poster slide but found {len(slides)}.")
+
+            if slides:
+                slide = slides[0]
+                if str(slide.get("type", "")).strip().lower() != "poster":
+                    issues.append("Poster draft must use slide type 'poster'.")
+
+                title = str(slide.get("title", "")).strip()
+                body = str(slide.get("body", "")).strip()
+                poster_items = slide.get("poster_items", [])
+
+                if not title:
+                    issues.append("Poster headline is empty.")
+                if not body:
+                    issues.append("Poster subheadline is empty.")
+                if len(title) > 64:
+                    issues.append("Poster headline exceeds 64 characters.")
+                if len(body) > 180:
+                    issues.append("Poster subheadline exceeds 180 characters.")
+                if not isinstance(poster_items, list) or not poster_items:
+                    issues.append("Poster items are missing.")
+                else:
+                    expected_count = int(self.config.get("poster_item_count", 6))
+                    if len(poster_items) != expected_count:
+                        issues.append(
+                            f"Expected {expected_count} poster items but found {len(poster_items)}."
+                        )
+                    for item_index, item in enumerate(poster_items, start=1):
+                        label = str(item.get("label", "")).strip()
+                        sublabel = str(item.get("sublabel", "")).strip()
+                        visual_prompt = str(item.get("visual_prompt", "")).strip()
+                        if not label:
+                            issues.append(f"Poster item {item_index}: label is empty.")
+                        if len(label) > 28:
+                            issues.append(
+                                f"Poster item {item_index}: label exceeds 28 characters."
+                            )
+                        if len(sublabel) > 44:
+                            issues.append(
+                                f"Poster item {item_index}: sublabel exceeds 44 characters."
+                            )
+                        if not visual_prompt:
+                            issues.append(
+                                f"Poster item {item_index}: visual prompt is empty."
+                            )
+                        if any(char in f"{label} {sublabel}" for char in ["#", "*", "_", "`"]):
+                            issues.append(
+                                f"Poster item {item_index}: contains markdown-like formatting."
+                            )
+                        if any(char.isdigit() for char in f"{label} {sublabel}"):
+                            issues.append(
+                                f"Poster item {item_index}: contains numeric claim, verify facts manually."
+                            )
+
+            if issues:
+                return {
+                    "status": "flag",
+                    "summary": "Poster review found issues that should be checked.",
+                    "issues": issues,
+                }
+
+            return {"status": "pass", "summary": "Poster rule-based review passed.", "issues": []}
 
         if len(slides) != self.config["slides_per_post"]:
             issues.append(
@@ -167,27 +265,191 @@ class CardNews:
             "No text, no letters, no numerals, no logos, no watermark, no UI, no collage."
         )
 
-    def _render_background_assets(self, draft: dict, generated_dir: str) -> list[dict]:
+    def _build_poster_background_prompt(self, draft: dict) -> str:
+        return (
+            "Single-page infographic background, warm paper texture, light editorial illustration mood, "
+            "soft abstract shapes, calm premium print feel, large clean negative space. "
+            f"Topic: {str(draft.get('topic', '')).strip()}. "
+            f"Niche: {self.niche}. Language: {self.language}. "
+            "No text, no letters, no numerals, no logos, no watermark, no UI."
+        )
+
+    def _build_poster_item_prompt(self, item: dict, topic: str) -> str:
+        label = str(item.get("label", "")).strip()
+        sublabel = str(item.get("sublabel", "")).strip()
+        user_prompt = str(item.get("visual_prompt", "")).strip()
+        base_prompt = (
+            "Single isolated editorial illustration, centered subject, plain light backdrop, "
+            "warm travel-poster palette, clean silhouette, simple readable forms, no text, no letters, "
+            "no numerals, no watermark."
+        )
+        return " ".join(
+            part
+            for part in [
+                user_prompt,
+                f"Topic: {topic}." if topic else "",
+                f"Label: {label}." if label else "",
+                f"Context: {sublabel}." if sublabel else "",
+                base_prompt,
+            ]
+            if part
+        )
+
+    def _render_poster_assets(
+        self,
+        draft: dict,
+        generated_dir: str,
+        progress_callback=None,
+    ) -> list[dict]:
+        slides = draft.get("slides", [])
+        if not slides:
+            return []
+
+        slide_copy = dict(slides[0])
+        poster_items = []
+        total_steps = len(slide_copy.get("poster_items", [])) + 2
+        step = 1
+        self._emit_progress(
+            progress_callback,
+            stage="backgrounds",
+            message="Generating poster background",
+            current=step,
+            total=total_steps,
+            progress=34,
+        )
+        slide_copy["background_path"] = (
+            generate_image_asset(
+                self._build_poster_background_prompt(draft),
+                generated_dir,
+                aspect_ratio="4:5",
+                progress_callback=lambda event, step_index=step: self._emit_progress(
+                    progress_callback,
+                    stage="backgrounds",
+                    message=f"Waiting for poster background ({event.get('elapsed_seconds', 0)}s)",
+                    current=step_index,
+                    total=total_steps,
+                    progress=34,
+                ),
+            )
+            or ""
+        )
+        step += 1
+
+        for item_index, item in enumerate(slide_copy.get("poster_items", []), start=1):
+            self._emit_progress(
+                progress_callback,
+                stage="illustrations",
+                message=f"Generating poster illustration {item_index}/{len(slide_copy.get('poster_items', []))}",
+                current=step,
+                total=total_steps,
+                progress=min(34 + step * 10, 82),
+            )
+            item_copy = dict(item)
+            item_copy["illustration_path"] = (
+                generate_image_asset(
+                    self._build_poster_item_prompt(
+                        item_copy,
+                        str(draft.get("topic", "")).strip(),
+                    ),
+                    generated_dir,
+                    aspect_ratio="1:1",
+                    progress_callback=lambda event, step_index=step, current_index=item_index: self._emit_progress(
+                        progress_callback,
+                        stage="illustrations",
+                        message=(
+                            f"Waiting for illustration {current_index}/{len(slide_copy.get('poster_items', []))} "
+                            f"({event.get('elapsed_seconds', 0)}s)"
+                        ),
+                        current=step_index,
+                        total=total_steps,
+                        progress=min(34 + step_index * 10, 82),
+                    ),
+                )
+                or ""
+            )
+            poster_items.append(item_copy)
+            step += 1
+
+        slide_copy["poster_items"] = poster_items
+        return [slide_copy]
+
+    def _render_background_assets(
+        self,
+        draft: dict,
+        generated_dir: str,
+        progress_callback=None,
+    ) -> list[dict]:
+        if str(draft.get("format", self.format_mode)).strip().lower() == "poster":
+            return self._render_poster_assets(draft, generated_dir, progress_callback=progress_callback)
+
         rendered_slides = []
         strategy = str(self.config.get("background_strategy", "deck_pair")).strip().lower()
         shared_backgrounds = {}
 
         if strategy == "shared_single":
+            self._emit_progress(
+                progress_callback,
+                stage="backgrounds",
+                message="Generating shared deck background",
+                current=1,
+                total=2,
+                progress=36,
+            )
             shared_backgrounds["shared"] = generate_image_asset(
                 self._build_shared_background_prompt(draft, "primary"),
                 generated_dir,
                 aspect_ratio="4:5",
+                progress_callback=lambda event: self._emit_progress(
+                    progress_callback,
+                    stage="backgrounds",
+                    message=f"Waiting for shared background ({event.get('elapsed_seconds', 0)}s)",
+                    current=1,
+                    total=2,
+                    progress=36,
+                ),
             )
         elif strategy == "deck_pair":
+            self._emit_progress(
+                progress_callback,
+                stage="backgrounds",
+                message="Generating primary deck background",
+                current=1,
+                total=3,
+                progress=32,
+            )
             shared_backgrounds["primary"] = generate_image_asset(
                 self._build_shared_background_prompt(draft, "primary"),
                 generated_dir,
                 aspect_ratio="4:5",
+                progress_callback=lambda event: self._emit_progress(
+                    progress_callback,
+                    stage="backgrounds",
+                    message=f"Waiting for primary background ({event.get('elapsed_seconds', 0)}s)",
+                    current=1,
+                    total=3,
+                    progress=32,
+                ),
+            )
+            self._emit_progress(
+                progress_callback,
+                stage="backgrounds",
+                message="Generating support deck background",
+                current=2,
+                total=3,
+                progress=48,
             )
             shared_backgrounds["support"] = generate_image_asset(
                 self._build_shared_background_prompt(draft, "support"),
                 generated_dir,
                 aspect_ratio="4:5",
+                progress_callback=lambda event: self._emit_progress(
+                    progress_callback,
+                    stage="backgrounds",
+                    message=f"Waiting for support background ({event.get('elapsed_seconds', 0)}s)",
+                    current=2,
+                    total=3,
+                    progress=48,
+                ),
             )
 
         for slide in draft.get("slides", []):
@@ -200,10 +462,26 @@ class CardNews:
                 bucket = "primary" if slide_type in {"cover", "quote", "cta"} else "support"
                 background_path = shared_backgrounds.get(bucket)
             else:
+                self._emit_progress(
+                    progress_callback,
+                    stage="backgrounds",
+                    message=f"Generating slide background {slide_copy.get('index', len(rendered_slides) + 1)}/{len(draft.get('slides', []))}",
+                    current=len(rendered_slides) + 1,
+                    total=len(draft.get("slides", [])),
+                    progress=min(30 + ((len(rendered_slides) + 1) * 8), 78),
+                )
                 background_path = generate_image_asset(
                     slide.get("visual_prompt", ""),
                     generated_dir,
                     aspect_ratio="4:5",
+                    progress_callback=lambda event, slide_index=len(rendered_slides) + 1: self._emit_progress(
+                        progress_callback,
+                        stage="backgrounds",
+                        message=f"Waiting for slide background {slide_index}/{len(draft.get('slides', []))} ({event.get('elapsed_seconds', 0)}s)",
+                        current=slide_index,
+                        total=len(draft.get("slides", [])),
+                        progress=min(30 + (slide_index * 8), 78),
+                    ),
                 )
 
             slide_copy["background_path"] = background_path or ""
@@ -211,7 +489,11 @@ class CardNews:
 
         return rendered_slides
 
-    def create_draft(self, topic_override: str | None = None) -> dict:
+    def create_draft(
+        self,
+        topic_override: str | None = None,
+        format_override: str | None = None,
+    ) -> dict:
         """
         Create a new draft and persist it.
         """
@@ -221,21 +503,57 @@ class CardNews:
         if not topic:
             topic = generate_topic_idea(self.niche, self.language)
 
-        outline = generate_cardnews_outline(
-            topic=topic,
-            language=self.language,
-            slide_count=self.config["slides_per_post"],
-        )
+        format_mode = str(format_override or self.format_mode).strip().lower() or self.format_mode
+        if format_mode not in {"carousel", "poster"}:
+            format_mode = self.format_mode
+
+        if format_mode == "poster":
+            outline = generate_poster_outline(
+                topic=topic,
+                language=self.language,
+                item_count=int(self.config.get("poster_item_count", 6)),
+            )
+        else:
+            outline = generate_cardnews_outline(
+                topic=topic,
+                language=self.language,
+                slide_count=self.config["slides_per_post"],
+            )
 
         timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
         slides = []
-        for index, slide in enumerate(outline["slides"], start=1):
-            slide_payload = dict(slide)
-            slide_payload["index"] = index
-            slide_payload["topic"] = outline["topic"]
-            slide_payload["background_path"] = ""
-            slide_payload["asset_path"] = ""
-            slides.append(slide_payload)
+        if format_mode == "poster":
+            slides.append(
+                {
+                    "index": 1,
+                    "type": "poster",
+                    "eyebrow": "VISUAL GUIDE",
+                    "title": str(outline.get("headline", outline["topic"])).strip(),
+                    "body": str(outline.get("subheadline", outline["caption"])).strip(),
+                    "highlight": "",
+                    "bullets": [],
+                    "visual_prompt": "",
+                    "topic": outline["topic"],
+                    "poster_items": [
+                        {
+                            **dict(item),
+                            "index": item_index,
+                            "illustration_path": "",
+                        }
+                        for item_index, item in enumerate(outline.get("items", []), start=1)
+                    ],
+                    "background_path": "",
+                    "asset_path": "",
+                }
+            )
+        else:
+            for index, slide in enumerate(outline["slides"], start=1):
+                slide_payload = dict(slide)
+                slide_payload["index"] = index
+                slide_payload["topic"] = outline["topic"]
+                slide_payload["background_path"] = ""
+                slide_payload["asset_path"] = ""
+                slides.append(slide_payload)
 
         draft = {
             "id": str(uuid4()),
@@ -243,6 +561,7 @@ class CardNews:
             "profile_nickname": self.nickname,
             "topic": outline["topic"],
             "caption": outline["caption"],
+            "format": format_mode,
             "language": self.language,
             "channels": self.channels,
             "slides": slides,
@@ -288,7 +607,7 @@ class CardNews:
         )
         return updated
 
-    def render_draft(self, draft_id: str) -> dict:
+    def render_draft(self, draft_id: str, progress_callback=None) -> dict:
         """
         Render a reviewed draft into PNG assets.
         """
@@ -302,9 +621,27 @@ class CardNews:
         os.makedirs(generated_dir, exist_ok=True)
         os.makedirs(slides_dir, exist_ok=True)
 
-        rendered_slides = self._render_background_assets(draft, generated_dir)
+        self._emit_progress(
+            progress_callback,
+            stage="prepare-assets",
+            message="Preparing image generation",
+            progress=28,
+        )
+        rendered_slides = self._render_background_assets(
+            draft,
+            generated_dir,
+            progress_callback=progress_callback,
+        )
 
-        if not any(slide.get("background_path", "") for slide in rendered_slides):
+        has_visual_assets = any(slide.get("background_path", "") for slide in rendered_slides)
+        if not has_visual_assets:
+            has_visual_assets = any(
+                item.get("illustration_path", "")
+                for slide in rendered_slides
+                for item in slide.get("poster_items", [])
+            )
+
+        if not has_visual_assets:
             provider = get_image_provider()
             if provider == "comfyui":
                 comfyui_config = get_image_generation_config()["comfyui"]
@@ -318,6 +655,12 @@ class CardNews:
                     "Slides were rendered with the visual fallback only."
                 )
 
+        self._emit_progress(
+            progress_callback,
+            stage="render",
+            message="Rendering final PNG assets",
+            progress=88,
+        )
         asset_paths = render_cardnews_slides(
             rendered_slides,
             slides_dir,
@@ -337,14 +680,24 @@ class CardNews:
                 "updated_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
             },
         )
+        self._emit_progress(
+            progress_callback,
+            stage="done",
+            message="Draft render completed",
+            progress=100,
+        )
         info(f"Rendered {len(asset_paths)} slides for draft {draft_id}.")
         return updated
 
-    def prepare_draft(self, topic_override: str | None = None) -> dict:
+    def prepare_draft(
+        self,
+        topic_override: str | None = None,
+        format_override: str | None = None,
+    ) -> dict:
         """
         Create, review and render a draft in sequence.
         """
-        draft = self.create_draft(topic_override=topic_override)
+        draft = self.create_draft(topic_override=topic_override, format_override=format_override)
         draft = self.review_draft(draft["id"])
         draft = self.render_draft(draft["id"])
         return draft

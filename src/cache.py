@@ -1,5 +1,6 @@
 import os
 import json
+import threading
 
 from typing import List
 from config import ROOT_DIR
@@ -9,6 +10,7 @@ PROVIDER_CACHE_FILES = {
     "youtube": "youtube.json",
     "cardnews": "cardnews_accounts.json",
 }
+_CARDNEWS_JOB_LOCK = threading.Lock()
 
 def get_cache_path() -> str:
     """
@@ -235,6 +237,90 @@ def get_cardnews_cache_path() -> str:
         path (str): CardNews cache path
     """
     return os.path.join(get_cache_path(), "cardnews.json")
+
+
+def get_cardnews_jobs_cache_path() -> str:
+    """
+    Gets the path to the CardNews job cache file.
+
+    Returns:
+        path (str): CardNews jobs cache path
+    """
+    return os.path.join(get_cache_path(), "cardnews_jobs.json")
+
+
+def _read_cardnews_jobs_unlocked() -> List[dict]:
+    cache_path = get_cardnews_jobs_cache_path()
+    if not os.path.exists(cache_path):
+        with open(cache_path, "w", encoding="utf-8") as file:
+            json.dump({"jobs": []}, file, indent=4)
+
+    with open(cache_path, "r", encoding="utf-8") as file:
+        parsed = json.load(file)
+
+    jobs = parsed.get("jobs", [])
+    return jobs if isinstance(jobs, list) else []
+
+
+def get_cardnews_jobs() -> List[dict]:
+    """
+    Gets all CardNews background jobs.
+
+    Returns:
+        jobs (List[dict]): Stored jobs
+    """
+    with _CARDNEWS_JOB_LOCK:
+        return _read_cardnews_jobs_unlocked()
+
+
+def get_cardnews_job(job_id: str) -> dict | None:
+    """
+    Gets a CardNews job by id.
+
+    Args:
+        job_id (str): Job identifier
+
+    Returns:
+        job (dict | None): Matching job if found
+    """
+    for job in get_cardnews_jobs():
+        if job.get("id") == job_id:
+            return job
+
+    return None
+
+
+def add_cardnews_job(job: dict) -> None:
+    """
+    Adds a CardNews background job to cache.
+    """
+    with _CARDNEWS_JOB_LOCK:
+        jobs = _read_cardnews_jobs_unlocked()
+        jobs.append(job)
+        jobs = sorted(jobs, key=lambda item: str(item.get("created_at", "")), reverse=True)[:20]
+
+        with open(get_cardnews_jobs_cache_path(), "w", encoding="utf-8") as file:
+            json.dump({"jobs": jobs}, file, indent=4)
+
+
+def update_cardnews_job(job_id: str, updates: dict) -> dict | None:
+    """
+    Updates a CardNews job by id.
+    """
+    with _CARDNEWS_JOB_LOCK:
+        jobs = _read_cardnews_jobs_unlocked()
+        updated_job = None
+
+        for job in jobs:
+            if job.get("id") == job_id:
+                job.update(updates or {})
+                updated_job = job
+                break
+
+        with open(get_cardnews_jobs_cache_path(), "w", encoding="utf-8") as file:
+            json.dump({"jobs": jobs}, file, indent=4)
+
+    return updated_job
 
 
 def get_cardnews_drafts() -> List[dict]:
