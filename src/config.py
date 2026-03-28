@@ -353,6 +353,124 @@ def get_nanobanana2_aspect_ratio() -> str:
     with open(os.path.join(ROOT_DIR, "config.json"), "r") as file:
         return json.load(file).get("nanobanana2_aspect_ratio", "9:16")
 
+
+def get_image_provider() -> str:
+    """
+    Gets the configured image generation provider.
+
+    Returns:
+        provider (str): Supported provider identifier
+    """
+    image_config = _read_config().get("image_generation", {})
+    if not isinstance(image_config, dict):
+        image_config = {}
+
+    provider = str(image_config.get("provider", "gemini")).strip().lower()
+    supported = {"none", "gemini", "comfyui"}
+    return provider if provider in supported else "gemini"
+
+
+def get_image_generation_config() -> dict:
+    """
+    Gets the image generation configuration with safe defaults.
+
+    Returns:
+        config (dict): Sanitized image generation settings
+    """
+    defaults = {
+        "provider": "gemini",
+        "gemini": {
+            "api_base_url": "https://generativelanguage.googleapis.com/v1beta",
+            "api_key": "",
+            "model": "gemini-3.1-flash-image-preview",
+            "aspect_ratio": "9:16",
+        },
+        "comfyui": {
+            "base_url": "http://127.0.0.1:8188",
+            "workflow_path": "",
+            "checkpoint": "",
+            "negative_prompt": "low quality, blurry, distorted, watermark, logo, text",
+            "steps": 8,
+            "cfg": 4.0,
+            "sampler_name": "euler",
+            "scheduler": "normal",
+            "timeout_seconds": 180,
+        },
+    }
+
+    raw_root = _read_config()
+    raw_image_config = raw_root.get("image_generation", {})
+    if not isinstance(raw_image_config, dict):
+        raw_image_config = {}
+
+    raw_comfyui = raw_image_config.get("comfyui", {})
+    if not isinstance(raw_comfyui, dict):
+        raw_comfyui = {}
+
+    try:
+        comfyui_steps = int(raw_comfyui.get("steps", defaults["comfyui"]["steps"]))
+    except (TypeError, ValueError):
+        comfyui_steps = defaults["comfyui"]["steps"]
+
+    try:
+        comfyui_cfg = float(raw_comfyui.get("cfg", defaults["comfyui"]["cfg"]))
+    except (TypeError, ValueError):
+        comfyui_cfg = defaults["comfyui"]["cfg"]
+
+    try:
+        comfyui_timeout = int(
+            raw_comfyui.get("timeout_seconds", defaults["comfyui"]["timeout_seconds"])
+        )
+    except (TypeError, ValueError):
+        comfyui_timeout = defaults["comfyui"]["timeout_seconds"]
+
+    provider = str(raw_image_config.get("provider", defaults["provider"])).strip().lower()
+    if provider not in {"none", "gemini", "comfyui"}:
+        provider = defaults["provider"]
+
+    return {
+        "provider": provider,
+        "gemini": {
+            "api_base_url": str(
+                raw_root.get("nanobanana2_api_base_url", defaults["gemini"]["api_base_url"])
+            ).strip()
+            or defaults["gemini"]["api_base_url"],
+            "api_key": str(raw_root.get("nanobanana2_api_key", "")).strip()
+            or os.environ.get("GEMINI_API_KEY", ""),
+            "model": str(raw_root.get("nanobanana2_model", defaults["gemini"]["model"])).strip()
+            or defaults["gemini"]["model"],
+            "aspect_ratio": str(
+                raw_root.get("nanobanana2_aspect_ratio", defaults["gemini"]["aspect_ratio"])
+            ).strip()
+            or defaults["gemini"]["aspect_ratio"],
+        },
+        "comfyui": {
+            "base_url": str(raw_comfyui.get("base_url", defaults["comfyui"]["base_url"])).strip()
+            or defaults["comfyui"]["base_url"],
+            "workflow_path": str(
+                raw_comfyui.get("workflow_path", defaults["comfyui"]["workflow_path"])
+            ).strip(),
+            "checkpoint": str(
+                raw_comfyui.get("checkpoint", defaults["comfyui"]["checkpoint"])
+            ).strip(),
+            "negative_prompt": str(
+                raw_comfyui.get("negative_prompt", defaults["comfyui"]["negative_prompt"])
+            ).strip()
+            or defaults["comfyui"]["negative_prompt"],
+            "steps": max(1, min(comfyui_steps, 50)),
+            "cfg": max(1.0, min(comfyui_cfg, 20.0)),
+            "sampler_name": str(
+                raw_comfyui.get("sampler_name", defaults["comfyui"]["sampler_name"])
+            ).strip()
+            or defaults["comfyui"]["sampler_name"],
+            "scheduler": str(
+                raw_comfyui.get("scheduler", defaults["comfyui"]["scheduler"])
+            ).strip()
+            or defaults["comfyui"]["scheduler"],
+            "timeout_seconds": max(10, min(comfyui_timeout, 900)),
+        },
+    }
+
 def get_threads() -> int:
     """
     Gets the amount of threads to use for example when writing to a file with MoviePy.

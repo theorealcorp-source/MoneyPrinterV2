@@ -32,7 +32,15 @@ class ContentPlannerTests(unittest.TestCase):
           "topic": "Saving money",
           "caption": "Simple saving system",
           "slides": [
-            {"title": "One", "body": "Body 1", "visual_prompt": "Prompt 1"}
+            {
+              "type": "cover",
+              "eyebrow": "START HERE",
+              "title": "One",
+              "body": "Body 1",
+              "highlight": "Cut one leak",
+              "bullets": ["Track spending", "Cancel extras"],
+              "visual_prompt": "Prompt 1"
+            }
           ]
         }
         """
@@ -41,7 +49,12 @@ class ContentPlannerTests(unittest.TestCase):
 
         self.assertEqual(outline["topic"], "Saving money")
         self.assertEqual(len(outline["slides"]), 3)
+        self.assertEqual(outline["slides"][0]["type"], "cover")
+        self.assertEqual(outline["slides"][1]["type"], "insight")
+        self.assertEqual(outline["slides"][2]["type"], "cta")
         self.assertEqual(outline["slides"][0]["title"], "One")
+        self.assertEqual(outline["slides"][0]["highlight"], "Cut one leak")
+        self.assertEqual(outline["slides"][0]["bullets"], ["Track spending", "Cancel extras"])
 
 
 if __name__ == "__main__":

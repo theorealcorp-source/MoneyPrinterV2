@@ -293,11 +293,54 @@
           <label>Gemini Model</label>
           <input name="gemini_model" value="{{ state.config.get('gemini_model', 'gemini-2.5-flash') }}">
 
-          <label>Gemini API Key</label>
-          <input name="gemini_api_key" type="password" placeholder="{% if state.config.get('gemini_api_key') %}Leave blank to keep current key{% else %}Set Gemini API key{% endif %}">
+	          <label>Gemini API Key</label>
+	          <input name="gemini_api_key" type="password" placeholder="{% if state.config.get('gemini_api_key') %}Leave blank to keep current key{% else %}Set Gemini API key{% endif %}">
 
-          <label>Slides Per Post</label>
-          <input name="slides_per_post" value="{{ state.cardnews_defaults.slides_per_post }}">
+	          <label>Image Provider</label>
+	          <select name="image_provider" style="width:100%;margin-bottom:12px;padding:10px;border-radius:12px;background:#0f1525;color:#fff;border:1px solid rgba(255,255,255,0.15);">
+	            {% for provider in state.image.provider_options %}
+	              <option value="{{ provider }}" {% if state.image.config.provider == provider %}selected{% endif %}>{{ provider }}</option>
+	            {% endfor %}
+	          </select>
+
+	          <label>Gemini Image Model</label>
+	          <input name="nanobanana2_model" value="{{ state.config.get('nanobanana2_model', state.image.config.gemini.model) }}" placeholder="gemini-3.1-flash-image-preview">
+
+	          <label>Gemini Image API Key</label>
+	          <input name="nanobanana2_api_key" type="password" placeholder="{% if state.config.get('nanobanana2_api_key') %}Leave blank to keep current key{% else %}Set Gemini image key{% endif %}">
+
+	          <label>Gemini Image Base URL</label>
+	          <input name="nanobanana2_api_base_url" value="{{ state.config.get('nanobanana2_api_base_url', state.image.config.gemini.api_base_url) }}">
+
+	          <label>Gemini Image Aspect Ratio</label>
+	          <input name="nanobanana2_aspect_ratio" value="{{ state.config.get('nanobanana2_aspect_ratio', state.image.config.gemini.aspect_ratio) }}" placeholder="4:5">
+
+	          <label>ComfyUI Base URL</label>
+	          <input name="comfyui_base_url" value="{{ state.image.config.comfyui.base_url }}" placeholder="http://127.0.0.1:8188">
+
+	          <label>ComfyUI Workflow Path</label>
+	          <input name="comfyui_workflow_path" value="{{ state.image.config.comfyui.workflow_path }}" placeholder="/absolute/path/to/workflow_api.json">
+
+	          <label>ComfyUI Checkpoint</label>
+	          <input name="comfyui_checkpoint" value="{{ state.image.config.comfyui.checkpoint }}" placeholder="sd_xl_base_1.0.safetensors">
+
+	          <label>ComfyUI Negative Prompt</label>
+	          <textarea name="comfyui_negative_prompt" rows="3" placeholder="low quality, blurry, distorted, watermark, logo, text">{{ state.image.config.comfyui.negative_prompt }}</textarea>
+
+	          <label>ComfyUI Steps</label>
+	          <input name="comfyui_steps" value="{{ state.image.config.comfyui.steps }}">
+
+	          <label>ComfyUI CFG</label>
+	          <input name="comfyui_cfg" value="{{ state.image.config.comfyui.cfg }}">
+
+	          <label>ComfyUI Sampler</label>
+	          <input name="comfyui_sampler_name" value="{{ state.image.config.comfyui.sampler_name }}" placeholder="euler">
+
+	          <label>ComfyUI Scheduler</label>
+	          <input name="comfyui_scheduler" value="{{ state.image.config.comfyui.scheduler }}" placeholder="normal">
+
+	          <label>Slides Per Post</label>
+	          <input name="slides_per_post" value="{{ state.cardnews_defaults.slides_per_post }}">
 
           <label>Default Channels (comma separated)</label>
           <input name="default_channels" value="{{ state.cardnews_defaults.default_channels|join(', ') }}">

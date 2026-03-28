@@ -22,6 +22,7 @@ from config import get_cardnews_config
 from config import get_dashboard_host
 from config import get_dashboard_port
 from config import get_full_config
+from config import get_image_generation_config
 from config import get_llm_provider
 from config import update_config
 from llm_provider import ensure_model_selected
@@ -82,6 +83,10 @@ def create_app() -> Flask:
                 "active_model": get_active_model(),
                 "provider_options": ["lmstudio", "ollama", "openai", "gemini"],
             },
+            "image": {
+                "config": get_image_generation_config(),
+                "provider_options": ["none", "comfyui", "gemini"],
+            },
         }
 
         preview_map = {}
@@ -127,6 +132,72 @@ def create_app() -> Flask:
         gemini_model = str(
             request.form.get("gemini_model", current.get("gemini_model", "gemini-2.5-flash"))
         ).strip()
+        image_config = get_image_generation_config()
+        comfyui_current = image_config["comfyui"]
+        gemini_image_current = image_config["gemini"]
+        image_provider = str(
+            request.form.get("image_provider", image_config.get("provider", "gemini"))
+        ).strip().lower() or image_config.get("provider", "gemini")
+        comfyui_base_url = str(
+            request.form.get("comfyui_base_url", comfyui_current.get("base_url", ""))
+        ).strip()
+        comfyui_workflow_path = str(
+            request.form.get("comfyui_workflow_path", comfyui_current.get("workflow_path", ""))
+        ).strip()
+        comfyui_checkpoint = str(
+            request.form.get("comfyui_checkpoint", comfyui_current.get("checkpoint", ""))
+        ).strip()
+        comfyui_negative_prompt = str(
+            request.form.get(
+                "comfyui_negative_prompt",
+                comfyui_current.get("negative_prompt", ""),
+            )
+        ).strip()
+        gemini_image_api_base_url = str(
+            request.form.get(
+                "nanobanana2_api_base_url",
+                gemini_image_current.get("api_base_url", ""),
+            )
+        ).strip()
+        gemini_image_api_key = str(request.form.get("nanobanana2_api_key", "")).strip() or str(
+            current.get("nanobanana2_api_key", "")
+        ).strip()
+        gemini_image_model = str(
+            request.form.get("nanobanana2_model", gemini_image_current.get("model", ""))
+        ).strip()
+        gemini_image_aspect_ratio = str(
+            request.form.get(
+                "nanobanana2_aspect_ratio",
+                gemini_image_current.get("aspect_ratio", "9:16"),
+            )
+        ).strip()
+
+        try:
+            comfyui_steps = int(
+                request.form.get("comfyui_steps", str(comfyui_current.get("steps", 8))) or 8
+            )
+        except ValueError:
+            comfyui_steps = int(comfyui_current.get("steps", 8))
+
+        try:
+            comfyui_cfg = float(
+                request.form.get("comfyui_cfg", str(comfyui_current.get("cfg", 4.0))) or 4.0
+            )
+        except ValueError:
+            comfyui_cfg = float(comfyui_current.get("cfg", 4.0))
+
+        comfyui_sampler_name = str(
+            request.form.get(
+                "comfyui_sampler_name",
+                comfyui_current.get("sampler_name", "euler"),
+            )
+        ).strip()
+        comfyui_scheduler = str(
+            request.form.get(
+                "comfyui_scheduler",
+                comfyui_current.get("scheduler", "normal"),
+            )
+        ).strip()
 
         updated = update_config(
             {
@@ -139,9 +210,26 @@ def create_app() -> Flask:
                 "openai_model": llm_model if provider in {"lmstudio", "openai"} else str(current.get("openai_model", "")).strip(),
                 "gemini_api_key": gemini_api_key,
                 "gemini_model": gemini_model,
+                "nanobanana2_api_base_url": gemini_image_api_base_url,
+                "nanobanana2_api_key": gemini_image_api_key,
+                "nanobanana2_model": gemini_image_model,
+                "nanobanana2_aspect_ratio": gemini_image_aspect_ratio,
                 "post_bridge": {
                     "enabled": _parse_bool(request.form.get("post_bridge_enabled")),
                     "auto_crosspost": _parse_bool(request.form.get("post_bridge_auto_crosspost")),
+                },
+                "image_generation": {
+                    "provider": image_provider,
+                    "comfyui": {
+                        "base_url": comfyui_base_url,
+                        "workflow_path": comfyui_workflow_path,
+                        "checkpoint": comfyui_checkpoint,
+                        "negative_prompt": comfyui_negative_prompt,
+                        "steps": comfyui_steps,
+                        "cfg": comfyui_cfg,
+                        "sampler_name": comfyui_sampler_name,
+                        "scheduler": comfyui_scheduler,
+                    },
                 },
                 "cardnews": {
                     "slides_per_post": int(request.form.get("slides_per_post", "6") or 6),

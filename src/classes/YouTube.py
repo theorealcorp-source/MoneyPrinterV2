@@ -9,6 +9,7 @@ import assemblyai as aai
 from utils import *
 from cache import *
 from .Tts import TTS
+from image_generator import generate_image_asset
 from llm_provider import generate_text
 from config import *
 from status import *
@@ -383,7 +384,7 @@ class YouTube:
 
     def generate_image(self, prompt: str) -> str:
         """
-        Generates an AI Image based on the given prompt using Nano Banana 2.
+        Generates an AI Image based on the given prompt using the configured provider.
 
         Args:
             prompt (str): Reference for image generation
@@ -391,7 +392,16 @@ class YouTube:
         Returns:
             path (str): The path to the generated image.
         """
-        return self.generate_image_nanobanana2(prompt)
+        image_path = generate_image_asset(
+            prompt,
+            os.path.join(ROOT_DIR, ".mp"),
+            aspect_ratio=get_nanobanana2_aspect_ratio(),
+        )
+        if image_path:
+            self.images.append(image_path)
+            if get_verbose():
+                info(f' => Wrote image from configured provider to "{image_path}"')
+        return image_path
 
     def generate_script_to_speech(self, tts_instance: TTS) -> str:
         """

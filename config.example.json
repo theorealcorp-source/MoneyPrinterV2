@@ -17,6 +17,20 @@
   "nanobanana2_api_key": "",
   "nanobanana2_model": "gemini-3.1-flash-image-preview",
   "nanobanana2_aspect_ratio": "9:16",
+  "image_generation": {
+    "provider": "none",
+    "comfyui": {
+      "base_url": "http://127.0.0.1:8188",
+      "workflow_path": "",
+      "checkpoint": "",
+      "negative_prompt": "low quality, blurry, distorted, watermark, logo, text",
+      "steps": 8,
+      "cfg": 4.0,
+      "sampler_name": "euler",
+      "scheduler": "normal",
+      "timeout_seconds": 180
+    }
+  },
   "threads": 2,
   "zip_url": "",
   "is_for_kids": false,

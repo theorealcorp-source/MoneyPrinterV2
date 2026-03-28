@@ -10,10 +10,13 @@ from cardnews_renderer import render_cardnews_slides
 from config import ROOT_DIR
 from config import assert_folder_structure
 from config import get_cardnews_config
+from config import get_image_generation_config
+from config import get_image_provider
+from content_planner import CARDNEWS_SLIDE_TYPES
 from content_planner import generate_cardnews_outline
 from content_planner import generate_topic_idea
 from content_planner import review_cardnews_draft
-from image_generator import generate_nanobanana_image
+from image_generator import generate_image_asset
 from post_bridge_integration import publish_cardnews_images
 from status import info
 from status import success
@@ -70,20 +73,43 @@ class CardNews:
             )
 
         for index, slide in enumerate(slides, start=1):
+            slide_type = str(slide.get("type", "")).strip().lower()
+            eyebrow = str(slide.get("eyebrow", "")).strip()
             title = str(slide.get("title", "")).strip()
             body = str(slide.get("body", "")).strip()
+            highlight = str(slide.get("highlight", "")).strip()
+            bullets = slide.get("bullets", [])
+
+            if slide_type not in CARDNEWS_SLIDE_TYPES:
+                issues.append(f"Slide {index}: unknown slide type '{slide_type}'.")
+            if not eyebrow:
+                issues.append(f"Slide {index}: eyebrow is empty.")
 
             if not title:
                 issues.append(f"Slide {index}: title is empty.")
             if not body:
                 issues.append(f"Slide {index}: body is empty.")
+            if len(eyebrow) > 18:
+                issues.append(f"Slide {index}: eyebrow exceeds 18 characters.")
             if len(title) > 55:
                 issues.append(f"Slide {index}: title exceeds 55 characters.")
             if len(body) > 220:
                 issues.append(f"Slide {index}: body exceeds 220 characters.")
+            if len(highlight) > 28:
+                issues.append(f"Slide {index}: highlight exceeds 28 characters.")
+            if isinstance(bullets, list) and len(bullets) > 3:
+                issues.append(f"Slide {index}: has more than 3 bullets.")
             if any(char in body for char in ["#", "*", "_", "`"]):
                 issues.append(f"Slide {index}: body contains markdown-like formatting.")
-            if any(char.isdigit() for char in body):
+            claim_blob = " ".join(
+                [
+                    title,
+                    body,
+                    highlight,
+                    " ".join(str(bullet) for bullet in bullets if str(bullet).strip()),
+                ]
+            )
+            if any(char.isdigit() for char in claim_blob):
                 issues.append(f"Slide {index}: contains numeric claim, verify facts manually.")
 
         if issues:
@@ -188,7 +214,7 @@ class CardNews:
 
         rendered_slides = []
         for slide in draft.get("slides", []):
-            background_path = generate_nanobanana_image(
+            background_path = generate_image_asset(
                 slide.get("visual_prompt", ""),
                 generated_dir,
                 aspect_ratio="4:5",
@@ -197,11 +223,26 @@ class CardNews:
             slide_copy["background_path"] = background_path or ""
             rendered_slides.append(slide_copy)
 
+        if not any(slide.get("background_path", "") for slide in rendered_slides):
+            provider = get_image_provider()
+            if provider == "comfyui":
+                comfyui_config = get_image_generation_config()["comfyui"]
+                raise RuntimeError(
+                    "ComfyUI did not return any images. "
+                    f"Check the server at {comfyui_config['base_url']} and verify the workflow/checkpoint settings."
+                )
+            if provider != "none":
+                warning(
+                    "Configured image provider returned no background assets. "
+                    "Slides were rendered with the visual fallback only."
+                )
+
         asset_paths = render_cardnews_slides(
             rendered_slides,
             slides_dir,
             self.config["render_width"],
             self.config["render_height"],
+            deck_topic=str(draft.get("topic", "")),
         )
 
         for slide, asset_path in zip(rendered_slides, asset_paths):

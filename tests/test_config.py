@@ -79,6 +79,28 @@ class PostBridgeConfigTests(unittest.TestCase):
         self.assertEqual(post_bridge_config["account_ids"], [])
         self.assertFalse(post_bridge_config["enabled"])
 
+    def test_image_generation_defaults_and_invalid_provider(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            self.write_config(
+                temp_dir,
+                {
+                    "image_generation": {
+                        "provider": "unsupported",
+                        "comfyui": {
+                            "steps": "oops",
+                            "cfg": "bad",
+                        },
+                    }
+                },
+            )
+
+            with patch.object(config, "ROOT_DIR", temp_dir):
+                image_config = config.get_image_generation_config()
+
+        self.assertEqual(image_config["provider"], "gemini")
+        self.assertEqual(image_config["comfyui"]["steps"], 8)
+        self.assertEqual(image_config["comfyui"]["cfg"], 4.0)
+
 
 if __name__ == "__main__":
     unittest.main()

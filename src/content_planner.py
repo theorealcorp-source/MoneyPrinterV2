@@ -7,6 +7,17 @@ from status import info
 from status import warning
 
 
+CARDNEWS_SLIDE_TYPES = {"cover", "insight", "list", "stat", "quote", "cta"}
+DEFAULT_EYEBROWS = {
+    "cover": "SWIPE GUIDE",
+    "insight": "WHY IT MATTERS",
+    "list": "QUICK CHECK",
+    "stat": "KEY POINT",
+    "quote": "ONE LINE",
+    "cta": "NEXT STEP",
+}
+
+
 def _strip_code_fences(raw_text: str) -> str:
     cleaned = str(raw_text or "").strip()
     if cleaned.startswith("```"):
@@ -26,6 +37,30 @@ def _extract_json_blob(raw_text: str) -> str:
             return cleaned[start_index : end_index + 1]
 
     return cleaned
+
+
+def _default_slide_type(index: int, slide_count: int) -> str:
+    if index == 0:
+        return "cover"
+    if index == slide_count - 1:
+        return "cta"
+
+    middle_types = ["insight", "list", "stat", "quote"]
+    return middle_types[(index - 1) % len(middle_types)]
+
+
+def _derive_bullets_from_text(text: str) -> list[str]:
+    chunks = re.split(r"(?:\n|[.!?]|(?:\s*[-•]\s*))", str(text or ""))
+    bullets = []
+
+    for chunk in chunks:
+        normalized = " ".join(chunk.strip().split())
+        if normalized and normalized not in bullets:
+            bullets.append(normalized)
+        if len(bullets) == 3:
+            break
+
+    return bullets
 
 
 def generate_json(prompt: str, model_name: str = None, max_attempts: int = 3):
@@ -105,8 +140,12 @@ Return only valid JSON with this exact shape:
   "caption": "string",
   "slides": [
     {{
+      "type": "cover|insight|list|stat|quote|cta",
+      "eyebrow": "string",
       "title": "string",
       "body": "string",
+      "highlight": "string",
+      "bullets": ["string"],
       "visual_prompt": "string"
     }}
   ]
@@ -116,11 +155,18 @@ Rules:
 - Output language: {language}
 - Topic: {topic}
 - Create exactly {slide_count} slides
+- Slide 1 type must be "cover"
+- Final slide type must be "cta"
+- Use at least one "list" or "stat" slide in the middle
 - Each title must be <= 55 characters
 - Each body must be 1-2 short sentences, <= 220 characters
+- Each eyebrow must be <= 18 characters
+- Each highlight must be <= 28 characters
+- bullets must be 0-3 short items and only included when useful
 - Slide 1 should hook the reader
 - Middle slides should explain or break down the topic
 - Final slide should end with a practical takeaway
+- Vary the slide rhythm so the carousel does not feel repetitive
 - visual_prompt must describe a single striking illustration background for that slide
 - Do not use markdown
 - Do not include extra keys
@@ -130,20 +176,65 @@ Rules:
     slides = outline.get("slides", []) if isinstance(outline, dict) else []
 
     normalized_slides = []
-    for slide in slides[:slide_count]:
+    for index, slide in enumerate(slides[:slide_count]):
+        slide_type = str(slide.get("type", "")).strip().lower()
+        if slide_type not in CARDNEWS_SLIDE_TYPES:
+            slide_type = _default_slide_type(index, slide_count)
+
+        title = str(slide.get("title", "")).strip()
+        body = str(slide.get("body", "")).strip()
+        highlight = str(slide.get("highlight", "")).strip()
+        eyebrow = str(slide.get("eyebrow", "")).strip() or DEFAULT_EYEBROWS[slide_type]
+
+        bullets = slide.get("bullets", [])
+        if not isinstance(bullets, list):
+            bullets = []
+
+        normalized_bullets = []
+        for bullet in bullets[:3]:
+            normalized = " ".join(str(bullet).strip().split())
+            if normalized:
+                normalized_bullets.append(normalized)
+
+        if slide_type in {"list", "cta"} and not normalized_bullets:
+            normalized_bullets = _derive_bullets_from_text(body)
+
+        if slide_type in {"stat", "quote"} and not highlight:
+            highlight = title or body[:28]
+
         normalized_slides.append(
             {
-                "title": str(slide.get("title", "")).strip(),
-                "body": str(slide.get("body", "")).strip(),
+                "type": slide_type,
+                "eyebrow": eyebrow[:18],
+                "title": title,
+                "body": body,
+                "highlight": highlight[:28],
+                "bullets": normalized_bullets[:3],
                 "visual_prompt": str(slide.get("visual_prompt", "")).strip(),
             }
         )
 
     while len(normalized_slides) < slide_count:
+        fallback_index = len(normalized_slides)
+        slide_type = _default_slide_type(fallback_index, slide_count)
+        fallback_body = ""
+        fallback_bullets = []
+        if slide_type in {"list", "cta"}:
+            fallback_body = "Keep the message short and easy to scan."
+            fallback_bullets = [
+                "Use one clear takeaway.",
+                "Keep the layout airy.",
+                "End with a practical next step.",
+            ]
+
         normalized_slides.append(
             {
+                "type": slide_type,
+                "eyebrow": DEFAULT_EYEBROWS[slide_type],
                 "title": f"{topic} {len(normalized_slides) + 1}",
-                "body": "",
+                "body": fallback_body,
+                "highlight": topic[:28],
+                "bullets": fallback_bullets,
                 "visual_prompt": f"Editorial illustration about {topic}",
             }
         )
@@ -175,6 +266,7 @@ Review criteria:
 - flow across slides
 - clickbait risk
 - unverifiable factual claims
+- visual rhythm across slide types
 - whether the ending gives a practical takeaway
 
 Language: {language}

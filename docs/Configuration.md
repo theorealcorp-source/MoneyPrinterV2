@@ -22,6 +22,18 @@ All your configurations will be in a file in the root directory, called `config.
 - `nanobanana2_api_key`: `string` - API key for Nano Banana 2 (Gemini image API). If empty, MPV2 falls back to environment variable `GEMINI_API_KEY`.
 - `nanobanana2_model`: `string` - Nano Banana 2 model name (default: `gemini-3.1-flash-image-preview`).
 - `nanobanana2_aspect_ratio`: `string` - Aspect ratio for generated images (default: `9:16`).
+- `image_generation`: `object`:
+    - `provider`: `string` - Image backend. Supported values: `none`, `gemini`, `comfyui`.
+    - `comfyui`: `object`:
+        - `base_url`: `string` - Local ComfyUI API URL (default: `http://127.0.0.1:8188`).
+        - `workflow_path`: `string` - Optional absolute path to an exported ComfyUI API workflow JSON. Supports placeholders like `{{prompt}}`, `{{negative_prompt}}`, `{{width}}`, `{{height}}`, `{{steps}}`, `{{cfg}}`, `{{seed}}`, `{{sampler_name}}`, `{{scheduler}}`, `{{checkpoint}}`.
+        - `checkpoint`: `string` - Checkpoint filename used by the built-in fallback workflow when `workflow_path` is empty.
+        - `negative_prompt`: `string` - Default negative prompt for local image generation.
+        - `steps`: `number` - Sampler steps for the built-in fallback workflow.
+        - `cfg`: `number` - CFG scale for the built-in fallback workflow.
+        - `sampler_name`: `string` - ComfyUI sampler for the built-in fallback workflow.
+        - `scheduler`: `string` - ComfyUI scheduler for the built-in fallback workflow.
+        - `timeout_seconds`: `number` - How long MPV2 waits for a ComfyUI prompt to finish.
 - `threads`: `number` - The amount of threads that will be used to execute operations, e.g. writing to a file using MoviePy.
 - `is_for_kids`: `boolean` - If `true`, the application will upload the video to YouTube Shorts as a video for kids.
 - `google_maps_scraper`: `string` - The URL to the Google Maps scraper. This will be used to scrape Google Maps for local businesses. It is recommended to use the default value.
@@ -62,6 +74,12 @@ All your configurations will be in a file in the root directory, called `config.
     - `host`: `string` - Bind address for the Flask dashboard.
     - `port`: `number` - Port for the Flask dashboard.
 
+### Local ComfyUI Notes
+
+- Start the ComfyUI API server before generating assets.
+- For quick setup, leave `workflow_path` blank and set `checkpoint` to a valid one-file checkpoint in your ComfyUI `models/checkpoints` directory.
+- For FLUX or other custom graphs, export a workflow in ComfyUI's API format and point `workflow_path` at that JSON file.
+
 ## Example
 
 ```json
@@ -84,6 +102,20 @@ All your configurations will be in a file in the root directory, called `config.
   "nanobanana2_api_key": "",
   "nanobanana2_model": "gemini-3.1-flash-image-preview",
   "nanobanana2_aspect_ratio": "9:16",
+  "image_generation": {
+    "provider": "none",
+    "comfyui": {
+      "base_url": "http://127.0.0.1:8188",
+      "workflow_path": "",
+      "checkpoint": "",
+      "negative_prompt": "low quality, blurry, distorted, watermark, logo, text",
+      "steps": 8,
+      "cfg": 4.0,
+      "sampler_name": "euler",
+      "scheduler": "normal",
+      "timeout_seconds": 180
+    }
+  },
   "threads": 2,
   "zip_url": "",
   "is_for_kids": false,
