@@ -14,7 +14,7 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for minimal test envs
     def colored(message: str, *_args, **_kwargs) -> str:
         return str(message)
 
-ROOT_DIR = os.path.dirname(sys.path[0])
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 CONFIG_PATH = os.path.join(ROOT_DIR, "config.json")
 CONFIG_EXAMPLE_PATH = os.path.join(ROOT_DIR, "config.example.json")
 
@@ -756,7 +756,7 @@ def get_cardnews_config() -> dict:
     supported_channels = {"instagram", "tiktok"}
     supported_formats = {"carousel", "poster"}
     supported_background_strategies = {"per_slide", "deck_pair", "shared_single"}
-    supported_background_styles = {"editorial_abstract", "paper_layers", "minimal_gradient"}
+    supported_background_styles = {"editorial_abstract", "paper_layers", "minimal_gradient", "public_service_flat"}
 
     raw_config = _read_config().get("cardnews", {})
     if not isinstance(raw_config, dict):
@@ -822,6 +822,201 @@ def get_cardnews_config() -> dict:
         "render_height": max(720, render_height),
         "background_strategy": background_strategy,
         "background_style": background_style,
+    }
+
+
+def get_topic_signal_config() -> dict:
+    """
+    Gets the topic signal collector configuration with safe defaults.
+
+    Returns:
+        config (dict): Sanitized topic signal settings
+    """
+    defaults = {
+        "ttl_minutes": 180,
+        "region": "US",
+        "language": "en-US",
+        "suggestion_count": 6,
+        "max_items_per_source": 8,
+        "google_trends": {
+            "enabled": True,
+            "rss_url": "",
+            "region": "US",
+        },
+        "youtube": {
+            "enabled": False,
+            "api_key": "",
+            "region_code": "US",
+            "video_category_id": "0",
+            "max_results": 8,
+        },
+        "rss": {
+            "enabled": True,
+            "feeds": [
+                "https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en",
+                "https://feeds.bbci.co.uk/news/world/rss.xml",
+            ],
+            "max_results": 8,
+        },
+        "reddit": {
+            "enabled": True,
+            "subreddits": ["news", "worldnews", "technology"],
+            "sort": "top",
+            "time": "day",
+            "max_results": 8,
+        },
+        "x": {
+            "enabled": False,
+            "bearer_token": "",
+            "queries": [],
+            "language": "en",
+            "max_results": 8,
+        },
+    }
+
+    raw_root = _read_config()
+    raw_config = raw_root.get("topic_signals", {})
+    if not isinstance(raw_config, dict):
+        raw_config = {}
+
+    def _normalize_string_list(raw_value, default: list[str]) -> list[str]:
+        normalized_values = []
+        if isinstance(raw_value, list):
+            for item in raw_value:
+                normalized = str(item).strip()
+                if normalized and normalized not in normalized_values:
+                    normalized_values.append(normalized)
+        return normalized_values or default.copy()
+
+    def _bounded_int(value, default: int, minimum: int, maximum: int) -> int:
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError):
+            parsed = default
+        return max(minimum, min(parsed, maximum))
+
+    google_trends = raw_config.get("google_trends", {})
+    if not isinstance(google_trends, dict):
+        google_trends = {}
+
+    youtube = raw_config.get("youtube", {})
+    if not isinstance(youtube, dict):
+        youtube = {}
+
+    rss = raw_config.get("rss", {})
+    if not isinstance(rss, dict):
+        rss = {}
+
+    reddit = raw_config.get("reddit", {})
+    if not isinstance(reddit, dict):
+        reddit = {}
+
+    x_config = raw_config.get("x", {})
+    if not isinstance(x_config, dict):
+        x_config = {}
+
+    reddit_sort = str(reddit.get("sort", defaults["reddit"]["sort"])).strip().lower()
+    if reddit_sort not in {"relevance", "hot", "top", "new", "comments"}:
+        reddit_sort = defaults["reddit"]["sort"]
+
+    reddit_time = str(reddit.get("time", defaults["reddit"]["time"])).strip().lower()
+    if reddit_time not in {"hour", "day", "week", "month", "year", "all"}:
+        reddit_time = defaults["reddit"]["time"]
+
+    return {
+        "ttl_minutes": _bounded_int(
+            raw_config.get("ttl_minutes", defaults["ttl_minutes"]),
+            defaults["ttl_minutes"],
+            10,
+            1440,
+        ),
+        "region": str(raw_config.get("region", defaults["region"])).strip()
+        or defaults["region"],
+        "language": str(raw_config.get("language", defaults["language"])).strip()
+        or defaults["language"],
+        "suggestion_count": _bounded_int(
+            raw_config.get("suggestion_count", defaults["suggestion_count"]),
+            defaults["suggestion_count"],
+            3,
+            12,
+        ),
+        "max_items_per_source": _bounded_int(
+            raw_config.get("max_items_per_source", defaults["max_items_per_source"]),
+            defaults["max_items_per_source"],
+            3,
+            20,
+        ),
+        "google_trends": {
+            "enabled": bool(google_trends.get("enabled", defaults["google_trends"]["enabled"])),
+            "rss_url": str(
+                google_trends.get("rss_url", defaults["google_trends"]["rss_url"])
+            ).strip(),
+            "region": str(
+                google_trends.get("region", raw_config.get("region", defaults["region"]))
+            ).strip()
+            or defaults["region"],
+        },
+        "youtube": {
+            "enabled": bool(youtube.get("enabled", defaults["youtube"]["enabled"])),
+            "api_key": str(youtube.get("api_key", "")).strip()
+            or os.environ.get("YOUTUBE_API_KEY", "").strip(),
+            "region_code": str(
+                youtube.get(
+                    "region_code",
+                    raw_config.get("region", defaults["youtube"]["region_code"]),
+                )
+            ).strip()
+            or defaults["youtube"]["region_code"],
+            "video_category_id": str(
+                youtube.get("video_category_id", defaults["youtube"]["video_category_id"])
+            ).strip()
+            or defaults["youtube"]["video_category_id"],
+            "max_results": _bounded_int(
+                youtube.get("max_results", defaults["youtube"]["max_results"]),
+                defaults["youtube"]["max_results"],
+                3,
+                20,
+            ),
+        },
+        "rss": {
+            "enabled": bool(rss.get("enabled", defaults["rss"]["enabled"])),
+            "feeds": _normalize_string_list(rss.get("feeds"), defaults["rss"]["feeds"]),
+            "max_results": _bounded_int(
+                rss.get("max_results", defaults["rss"]["max_results"]),
+                defaults["rss"]["max_results"],
+                3,
+                20,
+            ),
+        },
+        "reddit": {
+            "enabled": bool(reddit.get("enabled", defaults["reddit"]["enabled"])),
+            "subreddits": _normalize_string_list(
+                reddit.get("subreddits"),
+                defaults["reddit"]["subreddits"],
+            ),
+            "sort": reddit_sort,
+            "time": reddit_time,
+            "max_results": _bounded_int(
+                reddit.get("max_results", defaults["reddit"]["max_results"]),
+                defaults["reddit"]["max_results"],
+                3,
+                20,
+            ),
+        },
+        "x": {
+            "enabled": bool(x_config.get("enabled", defaults["x"]["enabled"])),
+            "bearer_token": str(x_config.get("bearer_token", "")).strip()
+            or os.environ.get("X_BEARER_TOKEN", "").strip(),
+            "queries": _normalize_string_list(x_config.get("queries"), defaults["x"]["queries"]),
+            "language": str(x_config.get("language", defaults["x"]["language"])).strip()
+            or defaults["x"]["language"],
+            "max_results": _bounded_int(
+                x_config.get("max_results", defaults["x"]["max_results"]),
+                defaults["x"]["max_results"],
+                3,
+                20,
+            ),
+        },
     }
 
 

@@ -44,6 +44,7 @@ YOUTUBE_CRON_OPTIONS = [
 
 CARDNEWS_OPTIONS = [
     "Generate Draft",
+    "Research Signal Topics",
     "Show Drafts",
     "Approve Draft",
     "Publish Draft",

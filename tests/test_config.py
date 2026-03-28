@@ -131,6 +131,52 @@ class PostBridgeConfigTests(unittest.TestCase):
         self.assertEqual(cardnews_config["background_strategy"], "deck_pair")
         self.assertEqual(cardnews_config["background_style"], "editorial_abstract")
 
+    def test_cardnews_accepts_public_service_background_style(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            self.write_config(
+                temp_dir,
+                {
+                    "cardnews": {
+                        "background_style": "public_service_flat",
+                    }
+                },
+            )
+
+            with self.patch_config_paths(temp_dir):
+                cardnews_config = config.get_cardnews_config()
+
+        self.assertEqual(cardnews_config["background_style"], "public_service_flat")
+
+    def test_topic_signal_config_uses_defaults_and_env_fallbacks(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            self.write_config(
+                temp_dir,
+                {
+                    "topic_signals": {
+                        "ttl_minutes": "oops",
+                        "youtube": {"enabled": True},
+                        "x": {"enabled": True},
+                    }
+                },
+            )
+
+            with patch.dict(
+                os.environ,
+                {"YOUTUBE_API_KEY": "yt-env-key", "X_BEARER_TOKEN": "x-env-token"},
+                clear=False,
+            ):
+                with self.patch_config_paths(temp_dir):
+                    signal_config = config.get_topic_signal_config()
+
+        self.assertEqual(signal_config["ttl_minutes"], 180)
+        self.assertEqual(signal_config["youtube"]["api_key"], "yt-env-key")
+        self.assertEqual(signal_config["x"]["bearer_token"], "x-env-token")
+        self.assertEqual(signal_config["rss"]["feeds"][0], "https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en")
+
+    def test_root_dir_is_repo_root_from_file_location(self) -> None:
+        expected_root = ROOT_DIR
+        self.assertEqual(config.ROOT_DIR, expected_root)
+
 
 if __name__ == "__main__":
     unittest.main()

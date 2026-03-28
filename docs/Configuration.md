@@ -69,9 +69,41 @@ All your configurations will be in a file in the root directory, called `config.
     - `review_required`: `boolean` - If `true`, drafts must be approved before publishing.
     - `default_channels`: `string[]` - Default publish channels for card-news drafts. MVP supports `instagram` and `tiktok`.
     - `background_strategy`: `string` - Background generation strategy. Options: `deck_pair`, `shared_single`, `per_slide`.
-    - `background_style`: `string` - Shared prompt style for local background generation. Options: `editorial_abstract`, `paper_layers`, `minimal_gradient`.
+    - `background_style`: `string` - Shared prompt style for local background generation. Options: `editorial_abstract`, `paper_layers`, `minimal_gradient`, `public_service_flat`.
     - `render_width`: `number` - Output width in pixels for rendered slides.
     - `render_height`: `number` - Output height in pixels for rendered slides.
+- `topic_signals`: `object`:
+    - `ttl_minutes`: `number` - Cache lifetime for collected topic-signal reports.
+    - `region`: `string` - Default region for Google Trends and YouTube trending lookups.
+    - `language`: `string` - Preferred language hint for source queries and suggestion synthesis.
+    - `suggestion_count`: `number` - Number of card-news topic ideas synthesized from the collected signals.
+    - `max_items_per_source`: `number` - Source item cap before clustering and suggestion synthesis.
+    - `google_trends`: `object`:
+        - `enabled`: `boolean` - Enables Google Trends daily trend ingestion.
+        - `rss_url`: `string` - Optional override for the Google Trends RSS endpoint. Leave blank to use `https://trends.google.com/trending/rss?geo=<region>`.
+        - `region`: `string` - Region code for the Trends RSS feed.
+    - `youtube`: `object`:
+        - `enabled`: `boolean` - Enables YouTube trending-video signals.
+        - `api_key`: `string` - YouTube Data API v3 key. If empty, MPV2 falls back to `YOUTUBE_API_KEY`.
+        - `region_code`: `string` - Region code for YouTube `mostPopular` lookups.
+        - `video_category_id`: `string` - Optional YouTube category id. Use `"0"` for all categories.
+        - `max_results`: `number` - How many videos to inspect.
+    - `rss`: `object`:
+        - `enabled`: `boolean` - Enables generic RSS/Atom feed ingestion.
+        - `feeds`: `string[]` - Feed URLs to monitor.
+        - `max_results`: `number` - How many feed entries to keep per refresh.
+    - `reddit`: `object`:
+        - `enabled`: `boolean` - Enables Reddit keyword and subreddit signal collection.
+        - `subreddits`: `string[]` - Default subreddits used when no niche-derived query terms are available.
+        - `sort`: `string` - Reddit listing/search sort. Supported values: `relevance`, `hot`, `top`, `new`, `comments`.
+        - `time`: `string` - Reddit time filter. Supported values: `hour`, `day`, `week`, `month`, `year`, `all`.
+        - `max_results`: `number` - How many Reddit posts to inspect.
+    - `x`: `object`:
+        - `enabled`: `boolean` - Enables X recent-search signals.
+        - `bearer_token`: `string` - X API bearer token. If empty, MPV2 falls back to `X_BEARER_TOKEN`.
+        - `queries`: `string[]` - Optional fixed X search queries. If empty, MPV2 derives queries from the CardNews niche.
+        - `language`: `string` - Language filter appended to the X recent-search query.
+        - `max_results`: `number` - How many posts to inspect per query.
 - `dashboard`: `object`:
     - `host`: `string` - Bind address for the Flask dashboard.
     - `port`: `number` - Port for the Flask dashboard.
@@ -169,6 +201,47 @@ bash scripts/start_comfyui_local.sh
     "render_width": 1080,
     "render_height": 1350
   },
+  "topic_signals": {
+    "ttl_minutes": 180,
+    "region": "US",
+    "language": "en-US",
+    "suggestion_count": 6,
+    "max_items_per_source": 8,
+    "google_trends": {
+      "enabled": true,
+      "rss_url": "",
+      "region": "US"
+    },
+    "youtube": {
+      "enabled": false,
+      "api_key": "",
+      "region_code": "US",
+      "video_category_id": "0",
+      "max_results": 8
+    },
+    "rss": {
+      "enabled": true,
+      "feeds": [
+        "https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en",
+        "https://feeds.bbci.co.uk/news/world/rss.xml"
+      ],
+      "max_results": 8
+    },
+    "reddit": {
+      "enabled": true,
+      "subreddits": ["news", "worldnews", "technology"],
+      "sort": "top",
+      "time": "day",
+      "max_results": 8
+    },
+    "x": {
+      "enabled": false,
+      "bearer_token": "",
+      "queries": [],
+      "language": "en",
+      "max_results": 8
+    }
+  },
   "dashboard": {
     "host": "127.0.0.1",
     "port": 5000
@@ -181,6 +254,8 @@ bash scripts/start_comfyui_local.sh
 - `GEMINI_API_KEY`: used when `nanobanana2_api_key` is empty.
 - `POST_BRIDGE_API_KEY`: used when `post_bridge.api_key` is empty.
 - `OPENAI_API_KEY`: used when `openai_api_key` is empty.
+- `YOUTUBE_API_KEY`: used when `topic_signals.youtube.api_key` is empty.
+- `X_BEARER_TOKEN`: used when `topic_signals.x.bearer_token` is empty.
 
 Example:
 

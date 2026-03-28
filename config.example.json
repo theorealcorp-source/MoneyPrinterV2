@@ -68,9 +68,50 @@
     "review_required": true,
     "default_channels": ["instagram"],
     "background_strategy": "deck_pair",
-    "background_style": "editorial_abstract",
+    "background_style": "public_service_flat",
     "render_width": 1080,
     "render_height": 1350
+  },
+  "topic_signals": {
+    "ttl_minutes": 180,
+    "region": "US",
+    "language": "en-US",
+    "suggestion_count": 6,
+    "max_items_per_source": 8,
+    "google_trends": {
+      "enabled": true,
+      "rss_url": "",
+      "region": "US"
+    },
+    "youtube": {
+      "enabled": false,
+      "api_key": "",
+      "region_code": "US",
+      "video_category_id": "0",
+      "max_results": 8
+    },
+    "rss": {
+      "enabled": true,
+      "feeds": [
+        "https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en",
+        "https://feeds.bbci.co.uk/news/world/rss.xml"
+      ],
+      "max_results": 8
+    },
+    "reddit": {
+      "enabled": true,
+      "subreddits": ["news", "worldnews", "technology"],
+      "sort": "top",
+      "time": "day",
+      "max_results": 8
+    },
+    "x": {
+      "enabled": false,
+      "bearer_token": "",
+      "queries": [],
+      "language": "en",
+      "max_results": 8
+    }
   },
   "dashboard": {
     "host": "127.0.0.1",

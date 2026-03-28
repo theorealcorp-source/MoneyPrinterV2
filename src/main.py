@@ -27,6 +27,7 @@ from llm_provider import list_models
 from llm_provider import select_provider
 from llm_provider import select_provider_model
 from post_bridge_integration import maybe_crosspost_youtube_short
+from topic_signal_collector import collect_topic_signals_for_profile
 
 
 def _parse_cardnews_channels(raw_value: str) -> list[str]:
@@ -152,6 +153,92 @@ def _select_cardnews_draft(studio: CardNews) -> dict | None:
     return None
 
 
+def _research_cardnews_topics(profile: dict, studio: CardNews) -> None:
+    report = collect_topic_signals_for_profile(profile, force_refresh=True)
+    suggestions = report.get("suggestions", [])
+    keywords = report.get("keywords", [])
+    source_summary = report.get("source_summary", [])
+
+    info("\n============ SIGNAL SOURCES ============", False)
+    if source_summary:
+        source_table = PrettyTable()
+        source_table.field_names = ["Source", "Count", "Top Score"]
+        for row in source_summary:
+            source_table.add_row(
+                [
+                    colored(str(row.get("source", "")), "cyan"),
+                    colored(str(row.get("count", "")), "blue"),
+                    colored(str(row.get("top_score", "")), "yellow"),
+                ]
+            )
+        print(source_table)
+    else:
+        warning("No live signals were collected from configured sources.", False)
+
+    if keywords:
+        info("Top keywords:", False)
+        print(", ".join(keyword["term"] for keyword in keywords[:10]))
+
+    if report.get("errors"):
+        for source_error in report["errors"][:5]:
+            warning(
+                f"{source_error.get('source', 'source')}: {source_error.get('error', 'unknown error')}",
+                False,
+            )
+
+    if not suggestions:
+        warning("No topic suggestions were generated from the collected signals.")
+        return
+
+    table = PrettyTable()
+    table.field_names = ["ID", "Topic", "Why Now", "Sources", "Keywords"]
+
+    for index, suggestion in enumerate(suggestions, start=1):
+        table.add_row(
+            [
+                index,
+                colored(str(suggestion.get("topic", ""))[:48], "green"),
+                colored(str(suggestion.get("why_now", ""))[:54], "blue"),
+                colored(", ".join(suggestion.get("source_mix", []))[:28], "yellow"),
+                colored(", ".join(suggestion.get("keywords", []))[:32], "cyan"),
+            ]
+        )
+
+    print(table)
+    user_input = question(
+        "Select a suggestion to generate a draft, or press Enter to return: ",
+        False,
+    ).strip()
+
+    if not user_input:
+        return
+
+    selected_topic = None
+    for index, suggestion in enumerate(suggestions, start=1):
+        if str(index) == user_input:
+            selected_topic = str(suggestion.get("topic", "")).strip()
+            break
+
+    if not selected_topic:
+        error("Invalid suggestion selected. Please try again.", "red")
+        return
+
+    draft = studio.prepare_draft(topic_override=selected_topic)
+    review = draft.get("review", {})
+    info(f"Draft review status: {review.get('status', 'pending')}")
+    if review.get("summary"):
+        info(review["summary"], False)
+    for issue in review.get("issues", [])[:5]:
+        warning(issue, False)
+
+    if review.get("status") != "block":
+        approve_now = question("Approve this draft now? (Yes/No): ").strip().lower()
+        if approve_now == "yes":
+            studio.approve_draft(draft["id"])
+    else:
+        warning("Draft is blocked and cannot be approved until fixed.")
+
+
 def start_cardnews_studio() -> None:
     info("Starting Card News Studio...")
     profile = _select_cardnews_profile()
@@ -188,6 +275,8 @@ def start_cardnews_studio() -> None:
             else:
                 warning("Draft is blocked and cannot be approved until fixed.")
         elif user_input == 2:
+            _research_cardnews_topics(profile, studio)
+        elif user_input == 3:
             draft = _select_cardnews_draft(studio)
             if draft is not None:
                 info(f"Topic: {draft.get('topic', '')}", False)
@@ -197,15 +286,15 @@ def start_cardnews_studio() -> None:
                     info(review["summary"], False)
                 for issue in review.get("issues", [])[:5]:
                     warning(issue, False)
-        elif user_input == 3:
-            draft = _select_cardnews_draft(studio)
-            if draft is not None:
-                studio.approve_draft(draft["id"])
         elif user_input == 4:
             draft = _select_cardnews_draft(studio)
             if draft is not None:
-                studio.publish_draft(draft["id"], interactive=True)
+                studio.approve_draft(draft["id"])
         elif user_input == 5:
+            draft = _select_cardnews_draft(studio)
+            if draft is not None:
+                studio.publish_draft(draft["id"], interactive=True)
+        elif user_input == 6:
             info("How often do you want to publish?")
 
             info("\n============ OPTIONS ============", False)
@@ -240,7 +329,7 @@ def start_cardnews_studio() -> None:
                 success("Set up CardNews CRON Job.")
             else:
                 break
-        elif user_input == 6:
+        elif user_input == 7:
             if get_verbose():
                 info(" => Leaving Card News Studio...", False)
             break

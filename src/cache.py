@@ -249,6 +249,16 @@ def get_cardnews_jobs_cache_path() -> str:
     return os.path.join(get_cache_path(), "cardnews_jobs.json")
 
 
+def get_topic_signals_cache_path() -> str:
+    """
+    Gets the path to the topic signal cache file.
+
+    Returns:
+        path (str): Topic signal cache path
+    """
+    return os.path.join(get_cache_path(), "topic_signals.json")
+
+
 def _read_cardnews_jobs_unlocked() -> List[dict]:
     cache_path = get_cardnews_jobs_cache_path()
     if not os.path.exists(cache_path):
@@ -415,3 +425,72 @@ def update_cardnews_draft(draft_id: str, updates: dict) -> dict | None:
         json.dump({"drafts": drafts}, file, indent=4)
 
     return updated_draft
+
+
+def get_topic_signal_reports() -> List[dict]:
+    """
+    Gets cached topic-signal reports.
+
+    Returns:
+        reports (List[dict]): Stored reports
+    """
+    cache_path = get_topic_signals_cache_path()
+
+    if not os.path.exists(cache_path):
+        with open(cache_path, "w", encoding="utf-8") as file:
+            json.dump({"reports": []}, file, indent=4)
+
+    with open(cache_path, "r", encoding="utf-8") as file:
+        parsed = json.load(file)
+
+    reports = parsed.get("reports", [])
+    return reports if isinstance(reports, list) else []
+
+
+def get_topic_signal_report(profile_id: str) -> dict | None:
+    """
+    Gets a cached topic-signal report for a profile.
+
+    Args:
+        profile_id (str): CardNews profile id
+
+    Returns:
+        report (dict | None): Latest report if found
+    """
+    for report in get_topic_signal_reports():
+        if report.get("profile_id") == profile_id:
+            return report
+
+    return None
+
+
+def save_topic_signal_report(report: dict) -> None:
+    """
+    Upserts a topic-signal report by profile id.
+
+    Args:
+        report (dict): Report payload
+    """
+    reports = get_topic_signal_reports()
+    profile_id = str(report.get("profile_id", "")).strip()
+    updated_reports = []
+    replaced = False
+
+    for existing in reports:
+        if profile_id and existing.get("profile_id") == profile_id:
+            updated_reports.append(report)
+            replaced = True
+            continue
+        updated_reports.append(existing)
+
+    if not replaced:
+        updated_reports.append(report)
+
+    updated_reports = sorted(
+        updated_reports,
+        key=lambda item: str(item.get("updated_at", "")),
+        reverse=True,
+    )[:20]
+
+    with open(get_topic_signals_cache_path(), "w", encoding="utf-8") as file:
+        json.dump({"reports": updated_reports}, file, indent=4)
