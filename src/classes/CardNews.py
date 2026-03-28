@@ -121,6 +121,96 @@ class CardNews:
 
         return {"status": "pass", "summary": "Rule-based review passed.", "issues": []}
 
+    def _background_style_prompt(self) -> str:
+        style = str(self.config.get("background_style", "editorial_abstract")).strip().lower()
+        if style == "paper_layers":
+            return (
+                "Paper-cut editorial background, layered soft shadows, tactile material depth, "
+                "calm premium magazine look, large clean negative space for overlay text."
+            )
+        if style == "minimal_gradient":
+            return (
+                "Minimal gradient editorial background, restrained shapes, smooth tonal transitions, "
+                "high readability, clean premium composition with strong empty space."
+            )
+
+        return (
+            "Editorial abstract background, geometric forms, subtle paper texture, balanced contrast, "
+            "premium magazine composition, clear negative space for overlay text."
+        )
+
+    def _build_shared_background_prompt(self, draft: dict, variant: str) -> str:
+        slides = draft.get("slides", [])
+        style_prompt = self._background_style_prompt()
+        topic = str(draft.get("topic", "")).strip()
+        topic_context = " ".join(
+            str(slide.get("title", "")).strip()
+            for slide in slides[:3]
+            if str(slide.get("title", "")).strip()
+        )
+
+        if variant == "primary":
+            mood_prompt = (
+                "Hero background for the opening and closing slides. Strong focal shape, more dramatic depth, "
+                "confident visual rhythm."
+            )
+        else:
+            mood_prompt = (
+                "Support background for explanation slides. Quieter structure, cleaner reading field, "
+                "less visual tension."
+            )
+
+        return (
+            f"{style_prompt} {mood_prompt} "
+            f"Card-news topic: {topic}. Context: {topic_context}. "
+            f"Niche: {self.niche}. Language: {self.language}. "
+            "No text, no letters, no numerals, no logos, no watermark, no UI, no collage."
+        )
+
+    def _render_background_assets(self, draft: dict, generated_dir: str) -> list[dict]:
+        rendered_slides = []
+        strategy = str(self.config.get("background_strategy", "deck_pair")).strip().lower()
+        shared_backgrounds = {}
+
+        if strategy == "shared_single":
+            shared_backgrounds["shared"] = generate_image_asset(
+                self._build_shared_background_prompt(draft, "primary"),
+                generated_dir,
+                aspect_ratio="4:5",
+            )
+        elif strategy == "deck_pair":
+            shared_backgrounds["primary"] = generate_image_asset(
+                self._build_shared_background_prompt(draft, "primary"),
+                generated_dir,
+                aspect_ratio="4:5",
+            )
+            shared_backgrounds["support"] = generate_image_asset(
+                self._build_shared_background_prompt(draft, "support"),
+                generated_dir,
+                aspect_ratio="4:5",
+            )
+
+        for slide in draft.get("slides", []):
+            slide_copy = dict(slide)
+            slide_type = str(slide.get("type", "")).strip().lower()
+
+            if strategy == "shared_single":
+                background_path = shared_backgrounds.get("shared")
+            elif strategy == "deck_pair":
+                bucket = "primary" if slide_type in {"cover", "quote", "cta"} else "support"
+                background_path = shared_backgrounds.get(bucket)
+            else:
+                background_path = generate_image_asset(
+                    slide.get("visual_prompt", ""),
+                    generated_dir,
+                    aspect_ratio="4:5",
+                )
+
+            slide_copy["background_path"] = background_path or ""
+            rendered_slides.append(slide_copy)
+
+        return rendered_slides
+
     def create_draft(self, topic_override: str | None = None) -> dict:
         """
         Create a new draft and persist it.
@@ -212,16 +302,7 @@ class CardNews:
         os.makedirs(generated_dir, exist_ok=True)
         os.makedirs(slides_dir, exist_ok=True)
 
-        rendered_slides = []
-        for slide in draft.get("slides", []):
-            background_path = generate_image_asset(
-                slide.get("visual_prompt", ""),
-                generated_dir,
-                aspect_ratio="4:5",
-            )
-            slide_copy = dict(slide)
-            slide_copy["background_path"] = background_path or ""
-            rendered_slides.append(slide_copy)
+        rendered_slides = self._render_background_assets(draft, generated_dir)
 
         if not any(slide.get("background_path", "") for slide in rendered_slides):
             provider = get_image_provider()

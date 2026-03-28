@@ -748,8 +748,12 @@ def get_cardnews_config() -> dict:
         "default_channels": ["instagram"],
         "render_width": 1080,
         "render_height": 1350,
+        "background_strategy": "deck_pair",
+        "background_style": "editorial_abstract",
     }
     supported_channels = {"instagram", "tiktok"}
+    supported_background_strategies = {"per_slide", "deck_pair", "shared_single"}
+    supported_background_styles = {"editorial_abstract", "paper_layers", "minimal_gradient"}
 
     raw_config = _read_config().get("cardnews", {})
     if not isinstance(raw_config, dict):
@@ -778,12 +782,26 @@ def get_cardnews_config() -> dict:
         render_width = defaults["render_width"]
         render_height = defaults["render_height"]
 
+    background_strategy = str(
+        raw_config.get("background_strategy", defaults["background_strategy"])
+    ).strip().lower()
+    if background_strategy not in supported_background_strategies:
+        background_strategy = defaults["background_strategy"]
+
+    background_style = str(
+        raw_config.get("background_style", defaults["background_style"])
+    ).strip().lower()
+    if background_style not in supported_background_styles:
+        background_style = defaults["background_style"]
+
     return {
         "slides_per_post": max(3, min(slides_per_post, 12)),
         "review_required": bool(raw_config.get("review_required", defaults["review_required"])),
         "default_channels": normalized_channels,
         "render_width": max(720, render_width),
         "render_height": max(720, render_height),
+        "background_strategy": background_strategy,
+        "background_style": background_style,
     }
 
 

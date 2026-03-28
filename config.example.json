@@ -24,8 +24,8 @@
       "workflow_path": "",
       "checkpoint": "",
       "negative_prompt": "low quality, blurry, distorted, watermark, logo, text",
-      "steps": 8,
-      "cfg": 4.0,
+      "steps": 10,
+      "cfg": 4.5,
       "sampler_name": "euler",
       "scheduler": "normal",
       "timeout_seconds": 180
@@ -65,6 +65,8 @@
     "slides_per_post": 6,
     "review_required": true,
     "default_channels": ["instagram"],
+    "background_strategy": "deck_pair",
+    "background_style": "editorial_abstract",
     "render_width": 1080,
     "render_height": 1350
   },

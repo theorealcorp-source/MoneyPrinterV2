@@ -1,4 +1,5 @@
 import os
+from urllib.parse import urlparse
 
 from flask import Flask
 from flask import abort
@@ -8,6 +9,7 @@ from flask import render_template
 from flask import request
 from flask import send_file
 from flask import url_for
+import requests
 
 from cache import add_account
 from cache import get_accounts
@@ -30,6 +32,70 @@ from llm_provider import get_active_model
 from llm_provider import get_active_provider
 from llm_provider import select_provider
 from llm_provider import select_provider_model
+
+
+LOCAL_SERVICE_HOSTS = {"127.0.0.1", "localhost", "::1", "0.0.0.0"}
+IMAGE_PRESETS = {
+    "flux_fast": {
+        "label": "FLUX Fast",
+        "description": "Use FLUX for a single shared hero background when you want to test a stronger key visual.",
+        "payload": {
+            "image_generation": {
+                "provider": "comfyui",
+                "comfyui": {
+                    "workflow_path": "",
+                    "checkpoint": "flux1-schnell-fp8.safetensors",
+                    "negative_prompt": "",
+                    "steps": 4,
+                    "cfg": 1.0,
+                    "sampler_name": "euler",
+                    "scheduler": "simple",
+                    "timeout_seconds": 360,
+                },
+            },
+            "cardnews": {
+                "background_strategy": "shared_single",
+                "background_style": "editorial_abstract",
+            },
+        },
+    },
+    "sdxl_cardnews": {
+        "label": "SDXL CardNews",
+        "description": "Practical default for this app: generate two SDXL backgrounds per deck and reuse them across slides.",
+        "payload": {
+            "image_generation": {
+                "provider": "comfyui",
+                "comfyui": {
+                    "workflow_path": "",
+                    "checkpoint": "sd_xl_base_1.0_0.9vae.safetensors",
+                    "negative_prompt": "low quality, blurry, distorted, watermark, logo, text",
+                    "steps": 10,
+                    "cfg": 4.5,
+                    "sampler_name": "euler",
+                    "scheduler": "normal",
+                    "timeout_seconds": 600,
+                },
+            },
+            "cardnews": {
+                "background_strategy": "deck_pair",
+                "background_style": "editorial_abstract",
+            },
+        },
+    },
+    "gemini_quick": {
+        "label": "Gemini Quick",
+        "description": "Switch image generation back to Gemini for remote output.",
+        "payload": {
+            "image_generation": {
+                "provider": "gemini",
+            },
+            "cardnews": {
+                "background_strategy": "per_slide",
+                "background_style": "editorial_abstract",
+            },
+        },
+    },
+}
 
 
 def _parse_bool(raw_value: str | None) -> bool:
@@ -62,6 +128,172 @@ def _draft_preview_files(draft: dict) -> list[str]:
     return files
 
 
+def _draft_slide_urls(draft: dict) -> list[str]:
+    return [
+        f"/artifacts/{draft.get('id', '')}/{file_name}"
+        for file_name in _draft_preview_files(draft)
+    ]
+
+
+def _build_draft_cards(drafts: list[dict]) -> list[dict]:
+    cards = []
+    for draft in sorted(drafts, key=lambda item: str(item.get("created_at", "")), reverse=True):
+        slide_urls = _draft_slide_urls(draft)
+        review = draft.get("review", {}) if isinstance(draft.get("review"), dict) else {}
+        slides = draft.get("slides", []) if isinstance(draft.get("slides"), list) else []
+        cards.append(
+            {
+                **draft,
+                "slide_urls": slide_urls,
+                "slide_count": len(slide_urls),
+                "issue_count": len(review.get("issues", []) or []),
+                "slide_types": [str(slide.get("type", "slide")) for slide in slides],
+                "primary_title": str(slides[0].get("title", "")) if slides else "",
+            }
+        )
+
+    return cards
+
+
+def _is_local_service_url(raw_url: str) -> bool:
+    try:
+        parsed = urlparse(str(raw_url).strip())
+    except ValueError:
+        return False
+
+    return parsed.hostname in LOCAL_SERVICE_HOSTS
+
+
+def _probe_service_json(url: str, timeout: float = 2.0) -> dict | None:
+    try:
+        response = requests.get(url, timeout=timeout)
+        response.raise_for_status()
+        payload = response.json()
+        return payload if isinstance(payload, dict) else {}
+    except Exception:
+        return None
+
+
+def _build_service_statuses(config_payload: dict, image_config: dict) -> list[dict]:
+    llm_provider = get_llm_provider()
+    llm_model = get_active_model() or config_payload.get("llm_model", "")
+    statuses = []
+
+    if llm_provider == "ollama":
+        ollama_url = str(config_payload.get("ollama_base_url", "http://127.0.0.1:11434")).rstrip("/")
+        tags = _probe_service_json(f"{ollama_url}/api/tags") if _is_local_service_url(ollama_url) else None
+        statuses.append(
+            {
+                "name": "LLM",
+                "kind": "ok" if tags is not None else "warn",
+                "summary": "Ollama online" if tags is not None else "Ollama unreachable",
+                "detail": llm_model or ollama_url,
+            }
+        )
+    elif llm_provider == "lmstudio":
+        base_url = str(config_payload.get("openai_base_url", "http://127.0.0.1:1234/v1")).rstrip("/")
+        models = _probe_service_json(f"{base_url}/models") if _is_local_service_url(base_url) else None
+        statuses.append(
+            {
+                "name": "LLM",
+                "kind": "ok" if models is not None else "warn",
+                "summary": "LM Studio online" if models is not None else "LM Studio unreachable",
+                "detail": llm_model or base_url,
+            }
+        )
+    elif llm_provider == "openai":
+        has_key = bool(str(config_payload.get("openai_api_key", "")).strip())
+        statuses.append(
+            {
+                "name": "LLM",
+                "kind": "ok" if has_key else "warn",
+                "summary": "OpenAI configured" if has_key else "OpenAI key missing",
+                "detail": llm_model or str(config_payload.get("openai_base_url", "https://api.openai.com/v1")),
+            }
+        )
+    else:
+        has_key = bool(str(config_payload.get("gemini_api_key", "")).strip())
+        statuses.append(
+            {
+                "name": "LLM",
+                "kind": "ok" if has_key else "warn",
+                "summary": "Gemini configured" if has_key else "Gemini key missing",
+                "detail": llm_model or str(config_payload.get("gemini_model", "gemini-2.5-flash")),
+            }
+        )
+
+    image_provider = str(image_config.get("provider", "gemini")).strip().lower()
+    if image_provider == "comfyui":
+        comfyui_config = image_config["comfyui"]
+        stats = _probe_service_json(
+            f"{str(comfyui_config.get('base_url', 'http://127.0.0.1:8188')).rstrip('/')}/system_stats"
+        )
+        device_name = ""
+        if stats:
+            devices = stats.get("devices", [])
+            if isinstance(devices, list) and devices:
+                device_name = str(devices[0].get("name", "")).strip()
+        statuses.append(
+            {
+                "name": "Image",
+                "kind": "ok" if stats is not None else "warn",
+                "summary": "ComfyUI online" if stats is not None else "ComfyUI offline",
+                "detail": str(comfyui_config.get("checkpoint", "")).strip() or device_name or "No checkpoint selected",
+            }
+        )
+    elif image_provider == "gemini":
+        has_key = bool(
+            str(config_payload.get("nanobanana2_api_key", "")).strip()
+            or str(config_payload.get("gemini_api_key", "")).strip()
+        )
+        statuses.append(
+            {
+                "name": "Image",
+                "kind": "ok" if has_key else "warn",
+                "summary": "Gemini image configured" if has_key else "Gemini image key missing",
+                "detail": str(config_payload.get("nanobanana2_model", "gemini-3.1-flash-image-preview")),
+            }
+        )
+    else:
+        statuses.append(
+            {
+                "name": "Image",
+                "kind": "muted",
+                "summary": "Image generation disabled",
+                "detail": "Fallback gradients only",
+            }
+        )
+
+    post_bridge_config = config_payload.get("post_bridge", {})
+    post_bridge_enabled = bool(post_bridge_config.get("enabled"))
+    statuses.append(
+        {
+            "name": "Publish",
+            "kind": "ok" if post_bridge_enabled else "muted",
+            "summary": "Post Bridge enabled" if post_bridge_enabled else "Publish bridge off",
+            "detail": ", ".join(post_bridge_config.get("platforms", [])) or "No channels",
+        }
+    )
+
+    return statuses
+
+
+def _build_overview(draft_cards: list[dict], profiles: list[dict], image_config: dict) -> list[dict]:
+    flagged_count = sum(1 for draft in draft_cards if str(draft.get("review", {}).get("status", "")).lower() == "flag")
+    approved_count = sum(1 for draft in draft_cards if str(draft.get("status", "")).lower() == "approved")
+    reviewed_count = sum(1 for draft in draft_cards if str(draft.get("status", "")).lower() in {"reviewed", "approved", "published"})
+    active_checkpoint = image_config["comfyui"].get("checkpoint", "") if image_config.get("provider") == "comfyui" else image_config.get("provider", "none")
+
+    return [
+        {"label": "Profiles", "value": str(len(profiles)), "hint": "Reusable content profiles"},
+        {"label": "Drafts", "value": str(len(draft_cards)), "hint": "Stored card decks"},
+        {"label": "Reviewed", "value": str(reviewed_count), "hint": "Ready for approval or publish"},
+        {"label": "Flags", "value": str(flagged_count), "hint": "Drafts needing manual checks"},
+        {"label": "Approved", "value": str(approved_count), "hint": "Approved decks in cache"},
+        {"label": "Image Stack", "value": str(image_config.get("provider", "none")).upper(), "hint": str(active_checkpoint or "No model selected")},
+    ]
+
+
 def create_app() -> Flask:
     ensure_config_file()
     template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "templates"))
@@ -71,12 +303,27 @@ def create_app() -> Flask:
     def dashboard_index():
         notice = request.args.get("notice", "")
         error = request.args.get("error", "")
+        config_payload = get_full_config()
+        draft_cards = _build_draft_cards(get_cardnews_drafts())
+        image_config = get_image_generation_config()
+        recent_draft = draft_cards[0] if draft_cards else None
         state = {
-            "config": get_full_config(),
+            "config": config_payload,
             "youtube_accounts": get_accounts("youtube"),
             "cardnews_profiles": get_accounts("cardnews"),
-            "cardnews_drafts": get_cardnews_drafts(),
+            "cardnews_drafts": draft_cards,
             "cardnews_defaults": get_cardnews_config(),
+            "overview": _build_overview(draft_cards, get_accounts("cardnews"), image_config),
+            "service_statuses": _build_service_statuses(config_payload, image_config),
+            "recent_draft": recent_draft,
+            "image_presets": [
+                {
+                    "id": preset_id,
+                    "label": preset["label"],
+                    "description": preset["description"],
+                }
+                for preset_id, preset in IMAGE_PRESETS.items()
+            ],
             "llm": {
                 "provider": get_llm_provider(),
                 "active_provider": get_active_provider(),
@@ -84,21 +331,16 @@ def create_app() -> Flask:
                 "provider_options": ["lmstudio", "ollama", "openai", "gemini"],
             },
             "image": {
-                "config": get_image_generation_config(),
+                "config": image_config,
                 "provider_options": ["none", "comfyui", "gemini"],
             },
         }
-
-        preview_map = {}
-        for draft in state["cardnews_drafts"]:
-            preview_map[draft["id"]] = _draft_preview_files(draft)
 
         return render_template(
             "dashboard.html",
             state=state,
             notice=notice,
             error=error,
-            preview_map=preview_map,
         )
 
     @app.get("/api/state")
@@ -235,6 +477,18 @@ def create_app() -> Flask:
                     "slides_per_post": int(request.form.get("slides_per_post", "6") or 6),
                     "review_required": _parse_bool(request.form.get("review_required")),
                     "default_channels": _parse_channels(request.form.get("default_channels", "")),
+                    "background_strategy": str(
+                        request.form.get(
+                            "background_strategy",
+                            current.get("cardnews", {}).get("background_strategy", "deck_pair"),
+                        )
+                    ).strip().lower(),
+                    "background_style": str(
+                        request.form.get(
+                            "background_style",
+                            current.get("cardnews", {}).get("background_style", "editorial_abstract"),
+                        )
+                    ).strip().lower(),
                 },
             }
         )
@@ -245,6 +499,35 @@ def create_app() -> Flask:
             select_provider(provider)
 
         return redirect(url_for("dashboard_index", notice="Settings saved."))
+
+    @app.post("/settings/image-preset")
+    def apply_image_preset():
+        preset_name = str(request.form.get("preset", "")).strip()
+        preset = IMAGE_PRESETS.get(preset_name)
+        if preset is None:
+            return redirect(url_for("dashboard_index", error="Unknown image preset."))
+
+        current_image_config = get_image_generation_config()
+        payload = {
+            "image_generation": {
+                **preset["payload"]["image_generation"],
+                "comfyui": {
+                    **current_image_config["comfyui"],
+                    **preset["payload"]["image_generation"].get("comfyui", {}),
+                },
+            },
+            "cardnews": {
+                **get_cardnews_config(),
+                **preset["payload"].get("cardnews", {}),
+            },
+        }
+        update_config(payload)
+        return redirect(
+            url_for(
+                "dashboard_index",
+                notice=f"Applied image preset: {preset['label']}.",
+            )
+        )
 
     @app.post("/accounts/cardnews/save")
     def save_cardnews_account():

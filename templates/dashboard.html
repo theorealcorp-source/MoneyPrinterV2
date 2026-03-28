@@ -4,543 +4,1632 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>MoneyPrinter Dashboard</title>
+  <link rel="icon" href="data:,">
   <style>
+    :root {
+      color-scheme: light;
+      --bg: #f2ede3;
+      --bg-soft: #f8f4ed;
+      --surface: rgba(255, 251, 245, 0.9);
+      --surface-strong: #fffdf8;
+      --surface-dark: #0f1c29;
+      --surface-dark-2: #152636;
+      --ink: #14202b;
+      --muted: #687280;
+      --line: rgba(20, 32, 43, 0.1);
+      --line-strong: rgba(20, 32, 43, 0.16);
+      --accent: #0d8b80;
+      --accent-strong: #0d6f67;
+      --accent-soft: rgba(13, 139, 128, 0.12);
+      --warning: #9f580a;
+      --warning-soft: rgba(234, 179, 8, 0.14);
+      --danger: #a7462a;
+      --danger-soft: rgba(220, 38, 38, 0.12);
+      --success: #156b44;
+      --success-soft: rgba(22, 101, 52, 0.12);
+      --shadow: 0 24px 60px rgba(28, 38, 49, 0.12);
+      --radius-xl: 28px;
+      --radius-lg: 22px;
+      --radius-md: 16px;
+      --radius-sm: 12px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
     body {
       margin: 0;
-      font-family: "Helvetica Neue", Arial, sans-serif;
-      background: #0b1020;
-      color: #e7ecf5;
+      font-family: "SUIT Variable", "Pretendard Variable", "SF Pro Display", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top right, rgba(13, 139, 128, 0.14), transparent 22rem),
+        radial-gradient(circle at bottom left, rgba(216, 154, 55, 0.14), transparent 26rem),
+        var(--bg);
+      color: var(--ink);
     }
-    .page {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 32px 20px 64px;
+
+    a {
+      color: inherit;
+      text-decoration: none;
     }
-    h1, h2, h3, p {
-      margin-top: 0;
+
+    button,
+    select,
+    input,
+    textarea {
+      font: inherit;
     }
-    .hero {
-      padding: 28px;
-      border-radius: 24px;
-      background: linear-gradient(135deg, #13315c, #0b6e4f);
-      margin-bottom: 24px;
-    }
-    .notice, .error {
-      padding: 12px 16px;
-      border-radius: 14px;
-      margin-bottom: 18px;
-    }
-    .notice { background: rgba(76, 175, 80, 0.18); }
-    .error { background: rgba(229, 57, 53, 0.18); }
-    .grid {
+
+    .layout {
+      min-height: 100vh;
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 18px;
-      margin-bottom: 18px;
+      grid-template-columns: 300px minmax(0, 1fr);
     }
-    .card {
-      background: #141b2d;
-      border: 1px solid rgba(255, 255, 255, 0.08);
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      align-self: start;
+      height: 100vh;
+      overflow-y: auto;
+      padding: 28px 22px 32px;
+      background:
+        linear-gradient(180deg, rgba(13, 28, 42, 0.98), rgba(10, 20, 30, 0.98)),
+        var(--surface-dark);
+      color: #edf3f6;
+      border-right: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .brand-block {
+      padding: 18px;
       border-radius: 22px;
-      padding: 20px;
+      background: linear-gradient(160deg, rgba(19, 49, 72, 0.92), rgba(13, 104, 94, 0.75));
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
     }
-    label {
-      display: block;
-      font-size: 13px;
-      margin-bottom: 6px;
-      color: #b2bfd2;
+
+    .brand-kicker {
+      margin: 0 0 8px;
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(237, 243, 246, 0.66);
     }
-    input, textarea {
-      width: 100%;
-      box-sizing: border-box;
-      border-radius: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      background: #0f1525;
-      color: #ffffff;
-      padding: 10px 12px;
-      margin-bottom: 12px;
+
+    .brand-title {
+      margin: 0 0 8px;
+      font-size: 28px;
+      line-height: 1.05;
+      letter-spacing: -0.04em;
     }
-    button {
-      border: 0;
-      border-radius: 12px;
-      padding: 10px 14px;
-      background: #53b3cb;
-      color: #08111f;
-      font-weight: 700;
-      cursor: pointer;
-    }
-    button.secondary {
-      background: #22304a;
-      color: #dbe6f5;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
+
+    .brand-copy {
+      margin: 0;
+      color: rgba(237, 243, 246, 0.78);
+      line-height: 1.55;
       font-size: 14px;
     }
-    th, td {
-      text-align: left;
-      padding: 10px 8px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-      vertical-align: top;
+
+    .sidebar-section {
+      margin-top: 24px;
     }
-    .pill {
-      display: inline-block;
-      padding: 4px 10px;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.08);
-      font-size: 12px;
-      margin-right: 6px;
-      margin-bottom: 6px;
+
+    .sidebar-label {
+      margin: 0 0 10px;
+      font-size: 11px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: rgba(237, 243, 246, 0.54);
     }
-    .drafts-grid {
+
+    .sidebar-nav {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-      gap: 18px;
+      gap: 8px;
     }
-    .draft-card {
-      background: #10192c;
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 22px;
+
+    .sidebar-nav a,
+    .preset-card button {
+      border-radius: 16px;
+      padding: 12px 14px;
+      transition: transform 140ms ease, background 140ms ease, border-color 140ms ease;
+    }
+
+    .sidebar-nav a {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: rgba(255, 255, 255, 0.04);
+      color: rgba(237, 243, 246, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .sidebar-nav a:hover,
+    .preset-card button:hover,
+    .button:hover,
+    .button-secondary:hover,
+    .button-ghost:hover {
+      transform: translateY(-1px);
+    }
+
+    .service-stack,
+    .preset-stack {
+      display: grid;
+      gap: 10px;
+    }
+
+    .service-card,
+    .preset-card {
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.045);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .service-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .service-name {
+      font-size: 12px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(237, 243, 246, 0.55);
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .status-pill.ok {
+      background: rgba(36, 185, 123, 0.14);
+      color: #89f0bd;
+    }
+
+    .status-pill.warn {
+      background: rgba(255, 189, 62, 0.14);
+      color: #ffd17b;
+    }
+
+    .status-pill.muted {
+      background: rgba(255, 255, 255, 0.08);
+      color: rgba(237, 243, 246, 0.74);
+    }
+
+    .service-summary,
+    .service-detail,
+    .preset-copy {
+      margin: 0;
+      line-height: 1.5;
+    }
+
+    .service-summary {
+      color: #f5fbfd;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .service-detail,
+    .preset-copy {
+      color: rgba(237, 243, 246, 0.64);
+      font-size: 13px;
+    }
+
+    .preset-card form {
+      margin: 10px 0 0;
+    }
+
+    .preset-card button {
+      width: 100%;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.05);
+      color: #f1f7fa;
+      cursor: pointer;
+      text-align: left;
+      font-weight: 600;
+    }
+
+    .sidebar-note {
+      margin: 0;
+      color: rgba(237, 243, 246, 0.58);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .workspace {
+      padding: 30px;
+      display: grid;
+      gap: 22px;
+    }
+
+    .masthead {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 20px;
+      padding: 28px 30px;
+      border-radius: var(--radius-xl);
+      background: linear-gradient(145deg, rgba(255, 251, 245, 0.92), rgba(250, 244, 236, 0.76));
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      font-size: 12px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(20, 32, 43, 0.5);
+    }
+
+    .masthead h1 {
+      margin: 0 0 10px;
+      font-size: clamp(34px, 5vw, 54px);
+      line-height: 0.95;
+      letter-spacing: -0.05em;
+    }
+
+    .masthead p {
+      margin: 0;
+      max-width: 58ch;
+      color: var(--muted);
+      line-height: 1.65;
+      font-size: 15px;
+    }
+
+    .masthead-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: start;
+      justify-content: end;
+    }
+
+    .button,
+    .button-secondary,
+    .button-ghost,
+    .inline-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border-radius: 999px;
+      padding: 12px 18px;
+      font-weight: 700;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: transform 140ms ease, background 140ms ease, border-color 140ms ease;
+    }
+
+    .button {
+      background: var(--accent);
+      color: white;
+      box-shadow: 0 14px 24px rgba(13, 111, 103, 0.22);
+    }
+
+    .button-secondary,
+    .inline-button {
+      background: rgba(20, 32, 43, 0.06);
+      color: var(--ink);
+      border-color: rgba(20, 32, 43, 0.1);
+    }
+
+    .button-ghost {
+      background: transparent;
+      color: var(--ink);
+      border-color: rgba(20, 32, 43, 0.12);
+    }
+
+    .feedback {
+      padding: 14px 16px;
+      border-radius: 18px;
+      font-size: 14px;
+      line-height: 1.55;
+      border: 1px solid transparent;
+    }
+
+    .feedback.notice {
+      background: var(--success-soft);
+      border-color: rgba(21, 107, 68, 0.12);
+      color: var(--success);
+    }
+
+    .feedback.error {
+      background: var(--danger-soft);
+      border-color: rgba(167, 70, 42, 0.14);
+      color: var(--danger);
+    }
+
+    .overview-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .metric-card,
+    .panel,
+    .deck-card,
+    .profile-card,
+    .account-card {
+      background: linear-gradient(180deg, rgba(255, 253, 248, 0.94), rgba(255, 249, 241, 0.84));
+      border: 1px solid rgba(255, 255, 255, 0.58);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .metric-card {
       padding: 18px;
+      border-radius: 22px;
     }
-    .draft-preview-hero {
+
+    .metric-label {
+      margin: 0 0 10px;
+      font-size: 12px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: rgba(20, 32, 43, 0.52);
+    }
+
+    .metric-value {
+      margin: 0 0 6px;
+      font-size: 30px;
+      line-height: 1;
+      letter-spacing: -0.05em;
+    }
+
+    .metric-hint {
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.55;
+      color: var(--muted);
+    }
+
+    .section {
+      display: grid;
+      gap: 16px;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 16px;
+    }
+
+    .section-head h2 {
+      margin: 0 0 6px;
+      font-size: 28px;
+      letter-spacing: -0.04em;
+    }
+
+    .section-head p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 14px;
+    }
+
+    .compose-grid {
+      display: grid;
+      grid-template-columns: 360px 360px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel,
+    .deck-card,
+    .profile-card,
+    .account-card {
+      border-radius: var(--radius-xl);
+      padding: 22px;
+    }
+
+    .panel h3,
+    .deck-card h3,
+    .profile-card h3,
+    .account-card h3 {
+      margin: 0 0 8px;
+      font-size: 22px;
+      letter-spacing: -0.03em;
+    }
+
+    .panel-copy,
+    .deck-summary,
+    .panel-subcopy {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    .panel form,
+    .settings-form,
+    .deck-actions form,
+    .profile-actions form {
+      margin: 0;
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px 14px;
+      margin-top: 16px;
+    }
+
+    .field-grid.single {
+      grid-template-columns: 1fr;
+    }
+
+    .field-group {
+      display: grid;
+      gap: 7px;
+    }
+
+    .field-span-2 {
+      grid-column: span 2;
+    }
+
+    label.field-label {
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(20, 32, 43, 0.56);
+    }
+
+    .field-hint {
+      margin: -2px 0 0;
+      font-size: 12px;
+      color: rgba(104, 114, 128, 0.92);
+      line-height: 1.45;
+    }
+
+    input,
+    textarea,
+    select {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.82);
+      color: var(--ink);
+      border-radius: 16px;
+      padding: 13px 14px;
+      min-height: 48px;
+      outline: none;
+      transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+    }
+
+    textarea {
+      min-height: 112px;
+      resize: vertical;
+    }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+      border-color: rgba(13, 139, 128, 0.36);
+      box-shadow: 0 0 0 4px rgba(13, 139, 128, 0.1);
+      background: rgba(255, 255, 255, 0.96);
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.62);
+      border: 1px solid var(--line);
+      min-height: 48px;
+    }
+
+    .checkbox-row input {
+      width: 18px;
+      height: 18px;
+      min-height: 18px;
+      margin: 0;
+      box-shadow: none;
+    }
+
+    .form-actions,
+    .deck-actions,
+    .profile-actions,
+    .inline-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .spotlight {
+      display: grid;
+      gap: 16px;
+      min-height: 100%;
+    }
+
+    .spotlight-hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 280px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .spotlight-media {
+      background: #efe7db;
+      border-radius: 24px;
+      padding: 16px;
+      border: 1px solid rgba(20, 32, 43, 0.08);
+    }
+
+    .spotlight-media button,
+    .deck-cover button,
+    .preview-thumb-button,
+    .thumb-rail button {
+      width: 100%;
+      background: transparent;
+      border: 0;
+      padding: 0;
+      cursor: pointer;
+    }
+
+    .spotlight-media img,
+    .deck-cover img,
+    .thumb-rail img,
+    .mini-thumb {
       width: 100%;
       aspect-ratio: 4 / 5;
       object-fit: cover;
-      border-radius: 18px;
-      border: 1px solid rgba(255,255,255,0.1);
       display: block;
-      background: #0b1020;
-      margin-bottom: 12px;
+      border-radius: 18px;
+      background: rgba(20, 32, 43, 0.06);
     }
-    .preview-rail {
+
+    .spotlight-copy {
+      display: grid;
+      gap: 12px;
+    }
+
+    .topic {
+      margin: 0;
+      font-size: clamp(26px, 3vw, 34px);
+      line-height: 1.02;
+      letter-spacing: -0.05em;
+    }
+
+    .subtopic {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .chip-row,
+    .mini-chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 8px 12px;
+      background: rgba(20, 32, 43, 0.06);
+      color: rgba(20, 32, 43, 0.78);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .chip.warn {
+      background: var(--warning-soft);
+      color: var(--warning);
+    }
+
+    .chip.ok {
+      background: var(--success-soft);
+      color: var(--success);
+    }
+
+    .chip.muted {
+      background: rgba(20, 32, 43, 0.05);
+      color: rgba(20, 32, 43, 0.62);
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .meta-card {
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.68);
+      border: 1px solid rgba(20, 32, 43, 0.08);
+    }
+
+    .meta-card label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(20, 32, 43, 0.48);
+    }
+
+    .meta-card strong {
+      font-size: 15px;
+      line-height: 1.4;
+      color: var(--ink);
+    }
+
+    .thumb-rail {
       display: flex;
       gap: 10px;
       overflow-x: auto;
       padding-bottom: 6px;
-      margin-bottom: 12px;
     }
-    .preview-thumb {
-      width: 88px;
-      min-width: 88px;
-      aspect-ratio: 4 / 5;
-      object-fit: cover;
-      border-radius: 14px;
-      border: 1px solid rgba(255,255,255,0.1);
-      background: #0b1020;
-      cursor: pointer;
+
+    .thumb-rail button {
+      min-width: 104px;
+      border-radius: 16px;
     }
-    .draft-meta {
+
+    .thumb-rail img {
+      width: 104px;
+      border: 2px solid transparent;
+    }
+
+    .draft-grid,
+    .profiles-grid,
+    .accounts-grid {
       display: grid;
+      gap: 18px;
+    }
+
+    .draft-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px;
-      margin: 12px 0;
-      font-size: 13px;
-      color: #b8c4d9;
     }
-    .draft-actions {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 12px;
+
+    .deck-card {
+      display: grid;
+      gap: 16px;
     }
-    .actions form {
-      margin-bottom: 8px;
-    }
-    .viewer-trigger {
-      width: 100%;
-      text-align: left;
-      background: transparent;
-      padding: 0;
-    }
-    .link-button {
-      background: #22304a;
-      color: #dbe6f5;
-    }
-    .viewer-modal {
-      position: fixed;
-      inset: 0;
-      background: rgba(4, 8, 15, 0.88);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-      padding: 24px;
-    }
-    .viewer-modal.is-open {
-      display: flex;
-    }
-    .viewer-panel {
-      width: min(1180px, 100%);
-      max-height: calc(100vh - 48px);
-      background: #0e1728;
+
+    .deck-cover {
+      background: #efe7db;
       border-radius: 24px;
-      border: 1px solid rgba(255,255,255,0.08);
-      padding: 18px;
-      overflow: hidden;
+      padding: 14px;
+      border: 1px solid rgba(20, 32, 43, 0.08);
     }
-    .viewer-header {
+
+    .deck-topline {
       display: flex;
       justify-content: space-between;
       gap: 12px;
       align-items: center;
+      font-size: 12px;
+      color: rgba(20, 32, 43, 0.58);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .deck-summary {
+      font-size: 14px;
+    }
+
+    .deck-actions form,
+    .profile-actions form {
+      display: inline-flex;
+    }
+
+    .profiles-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .profile-meta {
+      display: grid;
+      gap: 10px;
+      margin: 14px 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .settings-shell {
+      display: grid;
+      gap: 14px;
+    }
+
+    details.settings-group {
+      border-radius: 22px;
+      background: linear-gradient(180deg, rgba(255, 253, 248, 0.94), rgba(255, 249, 241, 0.84));
+      border: 1px solid rgba(255,255,255,0.58);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    details.settings-group summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 20px 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    details.settings-group summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .summary-copy {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 1.5;
+      margin-left: auto;
+      max-width: 42ch;
+      text-align: right;
+    }
+
+    .settings-body {
+      padding: 0 22px 22px;
+    }
+
+    .accounts-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .account-card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 14px;
+    }
+
+    .empty-state {
+      padding: 26px;
+      border-radius: 24px;
+      border: 1px dashed var(--line-strong);
+      color: var(--muted);
+      background: rgba(255,255,255,0.42);
+    }
+
+    .viewer-modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(9, 16, 24, 0.8);
+      z-index: 1000;
+      backdrop-filter: blur(20px);
+    }
+
+    .viewer-modal.is-open {
+      display: flex;
+    }
+
+    .viewer-panel {
+      width: min(1240px, 100%);
+      max-height: calc(100vh - 48px);
+      overflow: hidden;
+      border-radius: 28px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248, 243, 235, 0.9));
+      border: 1px solid rgba(255,255,255,0.72);
+      box-shadow: 0 40px 90px rgba(5, 10, 15, 0.24);
+      padding: 18px;
+    }
+
+    .viewer-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
       margin-bottom: 14px;
     }
+
+    .viewer-header h2 {
+      margin: 0 0 4px;
+      letter-spacing: -0.04em;
+    }
+
+    .viewer-header p {
+      margin: 0;
+      color: var(--muted);
+    }
+
     .viewer-stage {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 220px;
+      grid-template-columns: minmax(0, 1fr) 240px;
       gap: 16px;
       align-items: start;
     }
+
     .viewer-main {
-      background: #09101d;
-      border-radius: 20px;
-      padding: 14px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+      background: rgba(255,255,255,0.62);
+      border-radius: 22px;
+      padding: 16px;
       min-height: 70vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(20, 32, 43, 0.08);
     }
+
     .viewer-main img {
       max-width: 100%;
-      max-height: calc(70vh - 28px);
+      max-height: calc(70vh - 32px);
       border-radius: 18px;
       object-fit: contain;
     }
+
     .viewer-sidebar {
-      overflow-y: auto;
       max-height: 70vh;
+      overflow-y: auto;
+      display: grid;
+      gap: 10px;
       padding-right: 4px;
     }
+
     .viewer-sidebar button {
       width: 100%;
+      border: 0;
       background: transparent;
       padding: 0;
-      margin-bottom: 10px;
+      cursor: pointer;
     }
+
     .viewer-sidebar img {
       width: 100%;
       aspect-ratio: 4 / 5;
       object-fit: cover;
-      border-radius: 14px;
+      border-radius: 16px;
       border: 2px solid transparent;
     }
+
     .viewer-sidebar button.is-active img {
-      border-color: #53b3cb;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 5px rgba(13, 139, 128, 0.12);
     }
-    @media (max-width: 900px) {
+
+    @media (max-width: 1440px) {
+      .overview-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .compose-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .spotlight {
+        grid-column: span 2;
+      }
+    }
+
+    @media (max-width: 1180px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: relative;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+      }
+
+      .accounts-grid,
+      .profiles-grid,
+      .draft-grid,
+      .overview-grid,
+      .compose-grid,
+      .spotlight-hero,
       .viewer-stage {
         grid-template-columns: 1fr;
       }
+
+      .thumb-rail button {
+        min-width: 88px;
+      }
+
       .viewer-sidebar {
-        display: flex;
-        gap: 10px;
-        max-height: none;
+        grid-auto-flow: column;
+        grid-auto-columns: 120px;
         overflow-x: auto;
         overflow-y: hidden;
+        max-height: none;
       }
-      .viewer-sidebar button {
-        min-width: 120px;
-        margin-bottom: 0;
+    }
+
+    @media (max-width: 720px) {
+      .workspace {
+        padding: 18px;
+      }
+
+      .sidebar {
+        padding: 18px;
+      }
+
+      .masthead {
+        padding: 22px;
+      }
+
+      .masthead-actions,
+      .section-head {
+        display: grid;
+        justify-content: stretch;
+      }
+
+      .field-grid,
+      .meta-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .field-span-2 {
+        grid-column: auto;
+      }
+
+      .button,
+      .button-secondary,
+      .button-ghost,
+      .inline-button {
+        width: 100%;
       }
     }
   </style>
 </head>
 <body>
-  <div class="page">
-    <section class="hero">
-      <h1>MoneyPrinter Dashboard</h1>
-      <p>CardNews generation, review and publish flow is now available alongside the existing account overview.</p>
-      <div>
-        <span class="pill">YouTube accounts: {{ state.youtube_accounts|length }}</span>
-        <span class="pill">CardNews profiles: {{ state.cardnews_profiles|length }}</span>
-        <span class="pill">Drafts: {{ state.cardnews_drafts|length }}</span>
-        <span class="pill">LLM: {{ state.llm.provider }}{% if state.llm.active_model %} · {{ state.llm.active_model }}{% endif %}</span>
-      </div>
-    </section>
+  <div class="layout">
+    <aside class="sidebar">
+      <section class="brand-block">
+        <p class="brand-kicker">MoneyPrinter V2</p>
+        <h1 class="brand-title">CardNews Studio</h1>
+        <p class="brand-copy">Generate, inspect, approve, and publish card-news decks without digging through a single long form.</p>
+      </section>
 
-    {% if notice %}
-      <div class="notice">{{ notice }}</div>
-    {% endif %}
-    {% if error %}
-      <div class="error">{{ error }}</div>
-    {% endif %}
+      <section class="sidebar-section">
+        <p class="sidebar-label">Navigate</p>
+        <nav class="sidebar-nav">
+          <a href="#compose"><span>Compose</span><span>{{ state.cardnews_profiles|length }}</span></a>
+          <a href="#drafts"><span>Draft Library</span><span>{{ state.cardnews_drafts|length }}</span></a>
+          <a href="#profiles"><span>Profiles</span><span>{{ state.cardnews_profiles|length }}</span></a>
+          <a href="#settings"><span>Settings</span><span>{{ state.image.config.provider }}</span></a>
+        </nav>
+      </section>
 
-    <section class="grid">
-      <div class="card">
-        <h2>Settings</h2>
-        <form method="post" action="/settings/save">
-          <label>LLM Provider</label>
-          <select name="llm_provider" style="width:100%;margin-bottom:12px;padding:10px;border-radius:12px;background:#0f1525;color:#fff;border:1px solid rgba(255,255,255,0.15);">
-            {% for provider in state.llm.provider_options %}
-              <option value="{{ provider }}" {% if state.config.get('llm_provider', 'ollama') == provider %}selected{% endif %}>{{ provider }}</option>
-            {% endfor %}
-          </select>
-
-          <label>LLM Model</label>
-          <input name="llm_model" value="{{ state.config.get('llm_model', '') or state.config.get('openai_model', '') or state.config.get('ollama_model', '') or state.config.get('gemini_model', '') }}" placeholder="qwen/qwen3-30b-a3b-2507">
-
-          <label>Ollama Base URL</label>
-          <input name="ollama_base_url" value="{{ state.config.get('ollama_base_url', 'http://127.0.0.1:11434') }}">
-
-          <label>OpenAI / LM Studio Base URL</label>
-          <input name="openai_base_url" value="{{ state.config.get('openai_base_url', 'http://127.0.0.1:1234/v1') }}">
-
-          <label>OpenAI API Key</label>
-          <input name="openai_api_key" type="password" placeholder="{% if state.config.get('openai_api_key') %}Leave blank to keep current key{% else %}Set API key or LM Studio placeholder{% endif %}">
-
-          <label>Gemini Model</label>
-          <input name="gemini_model" value="{{ state.config.get('gemini_model', 'gemini-2.5-flash') }}">
-
-	          <label>Gemini API Key</label>
-	          <input name="gemini_api_key" type="password" placeholder="{% if state.config.get('gemini_api_key') %}Leave blank to keep current key{% else %}Set Gemini API key{% endif %}">
-
-	          <label>Image Provider</label>
-	          <select name="image_provider" style="width:100%;margin-bottom:12px;padding:10px;border-radius:12px;background:#0f1525;color:#fff;border:1px solid rgba(255,255,255,0.15);">
-	            {% for provider in state.image.provider_options %}
-	              <option value="{{ provider }}" {% if state.image.config.provider == provider %}selected{% endif %}>{{ provider }}</option>
-	            {% endfor %}
-	          </select>
-
-	          <label>Gemini Image Model</label>
-	          <input name="nanobanana2_model" value="{{ state.config.get('nanobanana2_model', state.image.config.gemini.model) }}" placeholder="gemini-3.1-flash-image-preview">
-
-	          <label>Gemini Image API Key</label>
-	          <input name="nanobanana2_api_key" type="password" placeholder="{% if state.config.get('nanobanana2_api_key') %}Leave blank to keep current key{% else %}Set Gemini image key{% endif %}">
-
-	          <label>Gemini Image Base URL</label>
-	          <input name="nanobanana2_api_base_url" value="{{ state.config.get('nanobanana2_api_base_url', state.image.config.gemini.api_base_url) }}">
-
-	          <label>Gemini Image Aspect Ratio</label>
-	          <input name="nanobanana2_aspect_ratio" value="{{ state.config.get('nanobanana2_aspect_ratio', state.image.config.gemini.aspect_ratio) }}" placeholder="4:5">
-
-	          <label>ComfyUI Base URL</label>
-	          <input name="comfyui_base_url" value="{{ state.image.config.comfyui.base_url }}" placeholder="http://127.0.0.1:8188">
-
-	          <label>ComfyUI Workflow Path</label>
-	          <input name="comfyui_workflow_path" value="{{ state.image.config.comfyui.workflow_path }}" placeholder="/absolute/path/to/workflow_api.json">
-
-	          <label>ComfyUI Checkpoint</label>
-	          <input name="comfyui_checkpoint" value="{{ state.image.config.comfyui.checkpoint }}" placeholder="sd_xl_base_1.0.safetensors">
-
-	          <label>ComfyUI Negative Prompt</label>
-	          <textarea name="comfyui_negative_prompt" rows="3" placeholder="low quality, blurry, distorted, watermark, logo, text">{{ state.image.config.comfyui.negative_prompt }}</textarea>
-
-	          <label>ComfyUI Steps</label>
-	          <input name="comfyui_steps" value="{{ state.image.config.comfyui.steps }}">
-
-	          <label>ComfyUI CFG</label>
-	          <input name="comfyui_cfg" value="{{ state.image.config.comfyui.cfg }}">
-
-	          <label>ComfyUI Sampler</label>
-	          <input name="comfyui_sampler_name" value="{{ state.image.config.comfyui.sampler_name }}" placeholder="euler">
-
-	          <label>ComfyUI Scheduler</label>
-	          <input name="comfyui_scheduler" value="{{ state.image.config.comfyui.scheduler }}" placeholder="normal">
-
-	          <label>Slides Per Post</label>
-	          <input name="slides_per_post" value="{{ state.cardnews_defaults.slides_per_post }}">
-
-          <label>Default Channels (comma separated)</label>
-          <input name="default_channels" value="{{ state.cardnews_defaults.default_channels|join(', ') }}">
-
-          <label>
-            <input type="checkbox" name="review_required" {% if state.cardnews_defaults.review_required %}checked{% endif %}>
-            Review Required
-          </label>
-
-          <label>
-            <input type="checkbox" name="post_bridge_enabled" {% if state.config.get('post_bridge', {}).get('enabled') %}checked{% endif %}>
-            Post Bridge Enabled
-          </label>
-
-          <label>
-            <input type="checkbox" name="post_bridge_auto_crosspost" {% if state.config.get('post_bridge', {}).get('auto_crosspost') %}checked{% endif %}>
-            Auto Crosspost
-          </label>
-
-          <button type="submit">Save Settings</button>
-        </form>
-      </div>
-
-      <div class="card">
-        <h2>Create CardNews Profile</h2>
-        <form method="post" action="/accounts/cardnews/save">
-          <label>Nickname</label>
-          <input name="nickname" placeholder="Finance KR">
-
-          <label>Niche</label>
-          <input name="niche" placeholder="budgeting for young professionals">
-
-          <label>Language</label>
-          <input name="language" value="Korean">
-
-          <label>Channels</label>
-          <input name="channels" value="{{ state.cardnews_defaults.default_channels|join(', ') }}">
-
-          <button type="submit">Save Profile</button>
-        </form>
-      </div>
-
-      <div class="card">
-        <h2>Generate Draft</h2>
-        <form method="post" action="/cardnews/generate">
-          <label>Profile</label>
-          <select name="profile_id" style="width:100%;margin-bottom:12px;padding:10px;border-radius:12px;background:#0f1525;color:#fff;border:1px solid rgba(255,255,255,0.15);">
-            {% for profile in state.cardnews_profiles %}
-              <option value="{{ profile.id }}">{{ profile.nickname }} · {{ profile.niche }}</option>
-            {% endfor %}
-          </select>
-
-          <label>Topic Override</label>
-          <textarea name="topic_override" rows="4" placeholder="Leave blank to auto-generate a topic"></textarea>
-          <button type="submit">Generate Draft</button>
-        </form>
-      </div>
-    </section>
-
-    <section class="card" style="margin-bottom:18px;">
-      <h2>CardNews Profiles</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Nickname</th>
-            <th>Niche</th>
-            <th>Language</th>
-            <th>Channels</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for profile in state.cardnews_profiles %}
-            <tr>
-              <td>{{ profile.nickname }}</td>
-              <td>{{ profile.niche }}</td>
-              <td>{{ profile.language }}</td>
-              <td>{{ profile.channels|join(', ') }}</td>
-              <td>
-                <form method="post" action="/accounts/cardnews/delete">
-                  <input type="hidden" name="profile_id" value="{{ profile.id }}">
-                  <button class="secondary" type="submit">Delete</button>
-                </form>
-              </td>
-            </tr>
-          {% else %}
-            <tr><td colspan="5">No CardNews profiles yet.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </section>
-
-    <section class="card" style="margin-bottom:18px;">
-      <h2>CardNews Drafts</h2>
-      <div class="drafts-grid">
-        {% for draft in state.cardnews_drafts %}
-          {% set previews = preview_map.get(draft.id, []) %}
-          {% set slide_urls = [] %}
-          {% for file_name in previews %}
-            {% set _ = slide_urls.append('/artifacts/' ~ draft.id ~ '/' ~ file_name) %}
-          {% endfor %}
-          <article class="draft-card">
-            {% if slide_urls %}
-              <button
-                type="button"
-                class="viewer-trigger"
-                data-topic="{{ draft.topic }}"
-                data-slides='{{ slide_urls|tojson|safe }}'
-                onclick="openViewer(this)"
-              >
-                <img class="draft-preview-hero" src="{{ slide_urls[0] }}" alt="{{ draft.topic }}">
-              </button>
-              <div class="preview-rail">
-                {% for slide_url in slide_urls %}
-                  <img
-                    class="preview-thumb"
-                    src="{{ slide_url }}"
-                    alt="Slide {{ loop.index }}"
-                    data-index="{{ loop.index0 }}"
-                    data-topic="{{ draft.topic }}"
-                    data-slides='{{ slide_urls|tojson|safe }}'
-                    onclick="openViewer(this, {{ loop.index0 }})"
-                  >
-                {% endfor %}
+      <section class="sidebar-section">
+        <p class="sidebar-label">Live Status</p>
+        <div class="service-stack">
+          {% for item in state.service_statuses %}
+            <article class="service-card">
+              <div class="service-head">
+                <span class="service-name">{{ item.name }}</span>
+                <span class="status-pill {{ item.kind }}">{{ item.summary }}</span>
               </div>
-            {% else %}
-              <div class="draft-preview-hero" style="display:flex;align-items:center;justify-content:center;color:#9fb3c8;">No preview</div>
-            {% endif %}
-
-            <h3>{{ draft.topic }}</h3>
-            <div>
-              <span class="pill">{{ draft.status }}</span>
-              <span class="pill">{{ draft.review.status }}</span>
-              {% for channel in draft.channels %}
-                <span class="pill">{{ channel }}</span>
-              {% endfor %}
-            </div>
-            <div class="draft-meta">
-              <div>Created<br><strong>{{ draft.created_at }}</strong></div>
-              <div>Slides<br><strong>{{ previews|length }}</strong></div>
-            </div>
-            <p style="color:#b8c4d9;">{{ draft.review.summary }}</p>
-            <div class="draft-actions">
-              {% if slide_urls %}
-                <button
-                  type="button"
-                  class="link-button"
-                  data-topic="{{ draft.topic }}"
-                  data-slides='{{ slide_urls|tojson|safe }}'
-                  onclick="openViewer(this)"
-                >Open Deck</button>
-              {% endif %}
-              <form method="post" action="/cardnews/approve">
-                <input type="hidden" name="draft_id" value="{{ draft.id }}">
-                <button class="secondary" type="submit">Approve</button>
-              </form>
-              <form method="post" action="/cardnews/publish">
-                <input type="hidden" name="draft_id" value="{{ draft.id }}">
-                <button type="submit">Publish</button>
-              </form>
-            </div>
-          </article>
-        {% else %}
-          <div>No CardNews drafts yet.</div>
-        {% endfor %}
-      </div>
-    </section>
-
-    <section class="card">
-      <h2>YouTube Accounts</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Nickname</th>
-            <th>Niche</th>
-            <th>Language</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for account in state.youtube_accounts %}
-            <tr>
-              <td>{{ account.nickname }}</td>
-              <td>{{ account.niche }}</td>
-              <td>{{ account.language }}</td>
-            </tr>
-          {% else %}
-            <tr><td colspan="3">No YouTube accounts configured.</td></tr>
+              <p class="service-detail">{{ item.detail }}</p>
+            </article>
           {% endfor %}
-        </tbody>
-      </table>
-    </section>
+        </div>
+      </section>
+
+      <section class="sidebar-section">
+        <p class="sidebar-label">Image Presets</p>
+        <div class="preset-stack">
+          {% for preset in state.image_presets %}
+            <article class="preset-card">
+              <strong>{{ preset.label }}</strong>
+              <p class="preset-copy">{{ preset.description }}</p>
+              <form method="post" action="/settings/image-preset">
+                <input type="hidden" name="preset" value="{{ preset.id }}">
+                <button type="submit">Apply Preset</button>
+              </form>
+            </article>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="sidebar-section">
+        <p class="sidebar-label">Current Stack</p>
+        <p class="sidebar-note">LLM: {{ state.llm.provider }}{% if state.llm.active_model %} · {{ state.llm.active_model }}{% endif %}</p>
+        <p class="sidebar-note">Image: {{ state.image.config.provider }} · {% if state.image.config.provider == 'comfyui' %}{{ state.image.config.comfyui.checkpoint or 'No checkpoint' }}{% else %}{{ state.config.get('nanobanana2_model', '') or 'No model' }}{% endif %}</p>
+        <p class="sidebar-note">Defaults: {{ state.cardnews_defaults.slides_per_post }} slides · {{ state.cardnews_defaults.default_channels|join(', ') }}</p>
+        <p class="sidebar-note">Backgrounds: {{ state.cardnews_defaults.background_strategy }} · {{ state.cardnews_defaults.background_style }}</p>
+      </section>
+    </aside>
+
+    <main class="workspace">
+      <section class="masthead">
+        <div>
+          <p class="eyebrow">Operational workspace</p>
+          <h1>Make the next deck readable in seconds.</h1>
+          <p>The dashboard now separates composition, latest draft review, and stack settings. The goal is shorter paths: pick a profile, generate a deck, inspect it at full size, and publish only when the review gate is clean.</p>
+        </div>
+        <div class="masthead-actions">
+          <a class="button" href="#compose">Start Compose</a>
+          <a class="button-secondary" href="#drafts">Open Drafts</a>
+          <a class="button-ghost" href="#settings">Adjust Stack</a>
+        </div>
+      </section>
+
+      {% if notice %}
+        <div class="feedback notice">{{ notice }}</div>
+      {% endif %}
+      {% if error %}
+        <div class="feedback error">{{ error }}</div>
+      {% endif %}
+
+      <section class="overview-grid">
+        {% for metric in state.overview %}
+          <article class="metric-card">
+            <p class="metric-label">{{ metric.label }}</p>
+            <p class="metric-value">{{ metric.value }}</p>
+            <p class="metric-hint">{{ metric.hint }}</p>
+          </article>
+        {% endfor %}
+      </section>
+
+      <section id="compose" class="section">
+        <div class="section-head">
+          <div>
+            <h2>Compose Workspace</h2>
+            <p>Keep the authoring path narrow: generate from a profile, save a new profile only when needed, and use the latest-draft spotlight instead of scanning the whole library first.</p>
+          </div>
+        </div>
+
+        <div class="compose-grid">
+          <article class="panel">
+            <p class="eyebrow">Quick Generate</p>
+            <h3>Build the next draft</h3>
+            <p class="panel-copy">Choose a stored profile and optionally override the topic. The active image preset controls whether the background comes from ComfyUI or Gemini.</p>
+            <form method="post" action="/cardnews/generate">
+              <div class="field-grid single">
+                <div class="field-group">
+                  <label class="field-label">Profile</label>
+                  <select name="profile_id">
+                    {% for profile in state.cardnews_profiles %}
+                      <option value="{{ profile.id }}">{{ profile.nickname }} · {{ profile.niche }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="field-group">
+                  <label class="field-label">Topic Override</label>
+                  <textarea name="topic_override" placeholder="Leave blank to let the planner pick a topic."></textarea>
+                </div>
+              </div>
+              <div class="form-actions">
+                <button class="button" type="submit">Generate Draft</button>
+              </div>
+            </form>
+          </article>
+
+          <article class="panel">
+            <p class="eyebrow">Profile Builder</p>
+            <h3>Create or tune a profile</h3>
+            <p class="panel-copy">Profiles define the niche, language, and target channels so you do not have to keep re-entering the same distribution intent.</p>
+            <form method="post" action="/accounts/cardnews/save">
+              <div class="field-grid">
+                <div class="field-group field-span-2">
+                  <label class="field-label">Nickname</label>
+                  <input name="nickname" placeholder="Finance KR">
+                </div>
+                <div class="field-group field-span-2">
+                  <label class="field-label">Niche</label>
+                  <input name="niche" placeholder="budgeting for young professionals">
+                </div>
+                <div class="field-group">
+                  <label class="field-label">Language</label>
+                  <input name="language" value="Korean">
+                </div>
+                <div class="field-group">
+                  <label class="field-label">Channels</label>
+                  <input name="channels" value="{{ state.cardnews_defaults.default_channels|join(', ') }}">
+                </div>
+              </div>
+              <div class="form-actions">
+                <button class="button-secondary" type="submit">Save Profile</button>
+              </div>
+            </form>
+          </article>
+
+          <article class="panel spotlight">
+            <p class="eyebrow">Latest Draft Spotlight</p>
+            {% if state.recent_draft %}
+              <div class="spotlight-hero">
+                <div class="spotlight-media">
+                  {% if state.recent_draft.slide_urls %}
+                    <button
+                      type="button"
+                      data-topic="{{ state.recent_draft.topic }}"
+                      data-slides='{{ state.recent_draft.slide_urls|tojson|safe }}'
+                      onclick="openViewer(this)"
+                    >
+                      <img src="{{ state.recent_draft.slide_urls[0] }}" alt="{{ state.recent_draft.topic }}">
+                    </button>
+                  {% else %}
+                    <div class="empty-state">No preview image found for the latest draft.</div>
+                  {% endif %}
+                </div>
+
+                <div class="spotlight-copy">
+                  <div class="chip-row">
+                    <span class="chip">{{ state.recent_draft.status }}</span>
+                    <span class="chip {% if state.recent_draft.review.status == 'flag' %}warn{% elif state.recent_draft.review.status == 'pass' %}ok{% else %}muted{% endif %}">{{ state.recent_draft.review.status }}</span>
+                    {% for channel in state.recent_draft.channels %}
+                      <span class="chip muted">{{ channel }}</span>
+                    {% endfor %}
+                  </div>
+
+                  <h3 class="topic">{{ state.recent_draft.topic }}</h3>
+                  <p class="subtopic">{{ state.recent_draft.review.summary }}</p>
+
+                  <div class="meta-grid">
+                    <div class="meta-card">
+                      <label>Profile</label>
+                      <strong>{{ state.recent_draft.profile_nickname }}</strong>
+                    </div>
+                    <div class="meta-card">
+                      <label>Created</label>
+                      <strong>{{ state.recent_draft.created_at }}</strong>
+                    </div>
+                    <div class="meta-card">
+                      <label>Slides</label>
+                      <strong>{{ state.recent_draft.slide_count }}</strong>
+                    </div>
+                  </div>
+
+                  <div class="chip-row">
+                    {% for slide_type in state.recent_draft.slide_types %}
+                      <span class="chip muted">{{ slide_type }}</span>
+                    {% endfor %}
+                  </div>
+
+                  {% if state.recent_draft.review.issues %}
+                    <div class="chip-row">
+                      {% for issue in state.recent_draft.review.issues %}
+                        <span class="chip warn">{{ issue }}</span>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+
+                  <div class="inline-actions">
+                    {% if state.recent_draft.slide_urls %}
+                      <button
+                        type="button"
+                        class="inline-button"
+                        data-topic="{{ state.recent_draft.topic }}"
+                        data-slides='{{ state.recent_draft.slide_urls|tojson|safe }}'
+                        onclick="openViewer(this)"
+                      >Open Deck</button>
+                    {% endif %}
+                    <form method="post" action="/cardnews/approve">
+                      <input type="hidden" name="draft_id" value="{{ state.recent_draft.id }}">
+                      <button class="button-secondary" type="submit">Approve</button>
+                    </form>
+                    <form method="post" action="/cardnews/publish">
+                      <input type="hidden" name="draft_id" value="{{ state.recent_draft.id }}">
+                      <button class="button" type="submit">Publish</button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+
+              {% if state.recent_draft.slide_urls %}
+                <div class="thumb-rail">
+                  {% for slide_url in state.recent_draft.slide_urls %}
+                    <button
+                      type="button"
+                      data-topic="{{ state.recent_draft.topic }}"
+                      data-slides='{{ state.recent_draft.slide_urls|tojson|safe }}'
+                      onclick="openViewer(this, {{ loop.index0 }})"
+                    >
+                      <img src="{{ slide_url }}" alt="Slide {{ loop.index }}">
+                    </button>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            {% else %}
+              <div class="empty-state">No drafts yet. Generate the first deck from a CardNews profile and it will appear here as the main review surface.</div>
+            {% endif %}
+          </article>
+        </div>
+      </section>
+
+      <section id="drafts" class="section">
+        <div class="section-head">
+          <div>
+            <h2>Draft Library</h2>
+            <p>Each deck card focuses on one job: identify the deck quickly, inspect the review state, and open or publish without scanning tiny thumbnails first.</p>
+          </div>
+        </div>
+
+        {% if state.cardnews_drafts %}
+          <div class="draft-grid">
+            {% for draft in state.cardnews_drafts %}
+              <article class="deck-card">
+                <div class="deck-topline">
+                  <span>{{ draft.profile_nickname }}</span>
+                  <span>{{ draft.created_at }}</span>
+                </div>
+
+                <div class="deck-cover">
+                  {% if draft.slide_urls %}
+                    <button
+                      type="button"
+                      data-topic="{{ draft.topic }}"
+                      data-slides='{{ draft.slide_urls|tojson|safe }}'
+                      onclick="openViewer(this)"
+                    >
+                      <img src="{{ draft.slide_urls[0] }}" alt="{{ draft.topic }}">
+                    </button>
+                  {% else %}
+                    <div class="empty-state">No preview available.</div>
+                  {% endif %}
+                </div>
+
+                <div class="chip-row">
+                  <span class="chip">{{ draft.status }}</span>
+                  <span class="chip {% if draft.review.status == 'flag' %}warn{% elif draft.review.status == 'pass' %}ok{% else %}muted{% endif %}">{{ draft.review.status }}</span>
+                  <span class="chip muted">{{ draft.slide_count }} slides</span>
+                  {% if draft.issue_count %}
+                    <span class="chip warn">{{ draft.issue_count }} issue{% if draft.issue_count != 1 %}s{% endif %}</span>
+                  {% endif %}
+                </div>
+
+                <h3>{{ draft.topic }}</h3>
+                <p class="deck-summary">{{ draft.review.summary }}</p>
+
+                <div class="chip-row">
+                  {% for channel in draft.channels %}
+                    <span class="chip muted">{{ channel }}</span>
+                  {% endfor %}
+                </div>
+
+                {% if draft.slide_urls %}
+                  <div class="thumb-rail">
+                    {% for slide_url in draft.slide_urls[:4] %}
+                      <button
+                        type="button"
+                        data-topic="{{ draft.topic }}"
+                        data-slides='{{ draft.slide_urls|tojson|safe }}'
+                        onclick="openViewer(this, {{ loop.index0 }})"
+                      >
+                        <img src="{{ slide_url }}" alt="Slide {{ loop.index }}">
+                      </button>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+
+                <div class="deck-actions">
+                  {% if draft.slide_urls %}
+                    <button
+                      type="button"
+                      class="inline-button"
+                      data-topic="{{ draft.topic }}"
+                      data-slides='{{ draft.slide_urls|tojson|safe }}'
+                      onclick="openViewer(this)"
+                    >Open Deck</button>
+                  {% endif %}
+                  <form method="post" action="/cardnews/approve">
+                    <input type="hidden" name="draft_id" value="{{ draft.id }}">
+                    <button class="button-secondary" type="submit">Approve</button>
+                  </form>
+                  <form method="post" action="/cardnews/publish">
+                    <input type="hidden" name="draft_id" value="{{ draft.id }}">
+                    <button class="button" type="submit">Publish</button>
+                  </form>
+                </div>
+              </article>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-state">No CardNews drafts yet.</div>
+        {% endif %}
+      </section>
+
+      <section id="profiles" class="section">
+        <div class="section-head">
+          <div>
+            <h2>Profiles</h2>
+            <p>Profiles are positioned as reusable editorial lenses. You should only create a new one when the niche or language really changes.</p>
+          </div>
+        </div>
+
+        {% if state.cardnews_profiles %}
+          <div class="profiles-grid">
+            {% for profile in state.cardnews_profiles %}
+              <article class="profile-card">
+                <p class="eyebrow">CardNews Profile</p>
+                <h3>{{ profile.nickname }}</h3>
+                <div class="profile-meta">
+                  <div><strong>Niche:</strong> {{ profile.niche }}</div>
+                  <div><strong>Language:</strong> {{ profile.language }}</div>
+                  <div><strong>Channels:</strong> {{ profile.channels|join(', ') }}</div>
+                </div>
+                <div class="profile-actions">
+                  <form method="post" action="/accounts/cardnews/delete">
+                    <input type="hidden" name="profile_id" value="{{ profile.id }}">
+                    <button class="button-secondary" type="submit">Delete</button>
+                  </form>
+                </div>
+              </article>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-state">No CardNews profiles yet.</div>
+        {% endif %}
+      </section>
+
+      <section id="settings" class="section">
+        <div class="section-head">
+          <div>
+            <h2>Stack Settings</h2>
+            <p>Settings are grouped by responsibility so the LLM stack, image backend, CardNews defaults, and publishing bridge can be edited without losing the rest of the page.</p>
+          </div>
+        </div>
+
+        <form method="post" action="/settings/save" class="settings-shell">
+          <details class="settings-group" open>
+            <summary>
+              <span>LLM Stack</span>
+              <span class="summary-copy">{{ state.llm.provider }}{% if state.llm.active_model %} · {{ state.llm.active_model }}{% endif %}</span>
+            </summary>
+            <div class="settings-body">
+              <div class="field-grid">
+                <div class="field-group">
+                  <label class="field-label">LLM Provider</label>
+                  <select name="llm_provider">
+                    {% for provider in state.llm.provider_options %}
+                      <option value="{{ provider }}" {% if state.config.get('llm_provider', 'ollama') == provider %}selected{% endif %}>{{ provider }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="field-group">
+                  <label class="field-label">LLM Model</label>
+                  <input name="llm_model" value="{{ state.config.get('llm_model', '') or state.config.get('openai_model', '') or state.config.get('ollama_model', '') or state.config.get('gemini_model', '') }}" placeholder="qwen/qwen3-30b-a3b-2507">
+                </div>
+
+                <div class="field-group">
+                  <label class="field-label">Ollama Base URL</label>
+                  <input name="ollama_base_url" value="{{ state.config.get('ollama_base_url', 'http://127.0.0.1:11434') }}">
+                </div>
+
+                <div class="field-group">
+                  <label class="field-label">OpenAI / LM Studio Base URL</label>
+                  <input name="openai_base_url" value="{{ state.config.get('openai_base_url', 'http://127.0.0.1:1234/v1') }}">
+                </div>
+
+                <div class="field-group">
+                  <label class="field-label">OpenAI API Key</label>
+                  <input name="openai_api_key" type="password" placeholder="{% if state.config.get('openai_api_key') %}Leave blank to keep current key{% else %}Set API key or LM Studio placeholder{% endif %}">
+                </div>
+
+                <div class="field-group">
+                  <label class="field-label">Gemini Model</label>
+                  <input name="gemini_model" value="{{ state.config.get('gemini_model', 'gemini-2.5-flash') }}">
+                </div>
+
+                <div class="field-group field-span-2">
+                  <label class="field-label">Gemini API Key</label>
+                  <input name="gemini_api_key" type="password" placeholder="{% if state.config.get('gemini_api_key') %}Leave blank to keep current key{% else %}Set Gemini API key{% endif %}">
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details class="settings-group" open>
+            <summary>
+              <span>Image Backend</span>
+              <span class="summary-copy">{{ state.image.config.provider }}{% if state.image.config.provider == 'comfyui' %} · {{ state.image.config.comfyui.checkpoint or 'No checkpoint' }}{% endif %}</span>
+            </summary>
+            <div class="settings-body">
+              <div class="field-grid">
+                <div class="field-group">
+                  <label class="field-label">Image Provider</label>
+                  <select name="image_provider">
+                    {% for provider in state.image.provider_options %}
+                      <option value="{{ provider }}" {% if state.image.config.provider == provider %}selected{% endif %}>{{ provider }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="field-group">
+                  <label class="field-label">Gemini Image Model</label>
+                  <input name="nanobanana2_model" value="{{ state.config.get('nanobanana2_model', state.image.config.gemini.model) }}" placeholder="gemini-3.1-flash-image-preview">
+                </div>
+
+                <div class="field-group field-span-2">
+                  <label class="field-label">Gemini Image API Key</label>
+                  <input name="nanobanana2_api_key" type="password" placeholder="{% if state.config.get('nanobanana2_api_key') %}Leave blank to keep current key{% else %}Set Gemini image key{% endif %}">
+                </div>
+
+                <div class="field-group">
+                  <label class="field-label">Gemini Image Base URL</label>
+                  <input name="nanobanana2_api_base_url" value="{{ state.config.get('nanobanana2_api_base_url', state.image.config.gemini.api_base_url) }}">
+                </div>
+
+                <div class="field-group">
+                  <label class="field-label">Gemini Aspect Ratio</label>
+                  <input name="nanobanana2_aspect_ratio" value="{{ state.config.get('nanobanana2_aspect_ratio', state.image.config.gemini.aspect_ratio) }}" placeholder="4:5">
+                </div>
+
+                <div class="field-group">
+                  <label class="field-label">ComfyUI Base URL</label>
+                  <input name="comfyui_base_url" value="{{ state.image.config.comfyui.base_url }}" placeholder="http://127.0.0.1:8188">
+                </div>
+
+                <div class="field-group">
+                  <label class="field-label">ComfyUI Workflow Path</label>
+                  <input name="comfyui_workflow_path" value="{{ state.image.config.comfyui.workflow_path }}" placeholder="/absolute/path/to/workflow_api.json">
+                  <p class="field-hint">Leave this blank to use the built-in checkpoint workflow.</p>
+                </div>
+
+                <div class="field-group">
+                  <label class="field-label">ComfyUI Checkpoint</label>
+                  <input name="comfyui_checkpoint" value="{{ state.image.config.comfyui.checkpoint }}" placeholder="flux1-schnell-fp8.safetensors">
+                </div>
+
+                <div class="field-group">
+                  <label class="field-label">ComfyUI Sampler</label>
+                  <input name="comfyui_sampler_name" value="{{ state.image.config.comfyui.sampler_name }}" placeholder="euler">
+                </div>
+
+                <div class="field-group">
+                  <label class="field-label">ComfyUI Steps</label>
+                  <input name="comfyui_steps" value="{{ state.image.config.comfyui.steps }}">
+                </div>
+
+                <div class="field-group">
+                  <label class="field-label">ComfyUI CFG</label>
+                  <input name="comfyui_cfg" value="{{ state.image.config.comfyui.cfg }}">
+                </div>
+
+                <div class="field-group">
+                  <label class="field-label">ComfyUI Scheduler</label>
+                  <input name="comfyui_scheduler" value="{{ state.image.config.comfyui.scheduler }}" placeholder="normal">
+                </div>
+
+                <div class="field-group field-span-2">
+                  <label class="field-label">ComfyUI Negative Prompt</label>
+                  <textarea name="comfyui_negative_prompt" placeholder="low quality, blurry, distorted, watermark, logo, text">{{ state.image.config.comfyui.negative_prompt }}</textarea>
+                  <p class="field-hint">FLUX Schnell usually works without a negative prompt. SDXL tends to benefit from one.</p>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details class="settings-group">
+            <summary>
+              <span>CardNews Defaults</span>
+              <span class="summary-copy">{{ state.cardnews_defaults.slides_per_post }} slides · {{ state.cardnews_defaults.background_strategy }}</span>
+            </summary>
+            <div class="settings-body">
+              <div class="field-grid">
+                <div class="field-group">
+                  <label class="field-label">Slides Per Post</label>
+                  <input name="slides_per_post" value="{{ state.cardnews_defaults.slides_per_post }}">
+                </div>
+
+                <div class="field-group">
+                  <label class="field-label">Default Channels</label>
+                  <input name="default_channels" value="{{ state.cardnews_defaults.default_channels|join(', ') }}">
+                </div>
+
+                <div class="field-group">
+                  <label class="field-label">Background Strategy</label>
+                  <select name="background_strategy">
+                    <option value="deck_pair" {% if state.cardnews_defaults.background_strategy == 'deck_pair' %}selected{% endif %}>deck_pair</option>
+                    <option value="shared_single" {% if state.cardnews_defaults.background_strategy == 'shared_single' %}selected{% endif %}>shared_single</option>
+                    <option value="per_slide" {% if state.cardnews_defaults.background_strategy == 'per_slide' %}selected{% endif %}>per_slide</option>
+                  </select>
+                  <p class="field-hint">`deck_pair` generates two backgrounds per deck, which is the most practical local default.</p>
+                </div>
+
+                <div class="field-group">
+                  <label class="field-label">Background Style</label>
+                  <select name="background_style">
+                    <option value="editorial_abstract" {% if state.cardnews_defaults.background_style == 'editorial_abstract' %}selected{% endif %}>editorial_abstract</option>
+                    <option value="paper_layers" {% if state.cardnews_defaults.background_style == 'paper_layers' %}selected{% endif %}>paper_layers</option>
+                    <option value="minimal_gradient" {% if state.cardnews_defaults.background_style == 'minimal_gradient' %}selected{% endif %}>minimal_gradient</option>
+                  </select>
+                </div>
+
+                <div class="field-group field-span-2">
+                  <label class="field-label">Review Policy</label>
+                  <label class="checkbox-row">
+                    <input type="checkbox" name="review_required" {% if state.cardnews_defaults.review_required %}checked{% endif %}>
+                    <span>Require approval before publishing</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details class="settings-group">
+            <summary>
+              <span>Publishing Bridge</span>
+              <span class="summary-copy">{% if state.config.get('post_bridge', {}).get('enabled') %}Enabled{% else %}Disabled{% endif %}</span>
+            </summary>
+            <div class="settings-body">
+              <div class="field-grid">
+                <div class="field-group">
+                  <label class="field-label">Bridge Status</label>
+                  <label class="checkbox-row">
+                    <input type="checkbox" name="post_bridge_enabled" {% if state.config.get('post_bridge', {}).get('enabled') %}checked{% endif %}>
+                    <span>Enable Post Bridge publishing</span>
+                  </label>
+                </div>
+
+                <div class="field-group">
+                  <label class="field-label">Crosspost Policy</label>
+                  <label class="checkbox-row">
+                    <input type="checkbox" name="post_bridge_auto_crosspost" {% if state.config.get('post_bridge', {}).get('auto_crosspost') %}checked{% endif %}>
+                    <span>Auto crosspost after publish</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <div class="form-actions">
+            <button class="button" type="submit">Save Settings</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <div>
+            <h2>YouTube Accounts</h2>
+            <p>The legacy account cache still shows here for reference, but the main workspace above is focused on CardNews production.</p>
+          </div>
+        </div>
+
+        {% if state.youtube_accounts %}
+          <div class="accounts-grid">
+            {% for account in state.youtube_accounts %}
+              <article class="account-card">
+                <p class="eyebrow">YouTube Account</p>
+                <h3>{{ account.nickname }}</h3>
+                <p>{{ account.niche }}</p>
+                <p>{{ account.language }}</p>
+              </article>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-state">No YouTube accounts configured.</div>
+        {% endif %}
+      </section>
+    </main>
   </div>
+
   <div id="viewerModal" class="viewer-modal" onclick="closeViewer(event)">
     <div class="viewer-panel" onclick="event.stopPropagation()">
       <div class="viewer-header">
         <div>
-          <h2 id="viewerTitle" style="margin-bottom:4px;">CardNews Preview</h2>
-          <p id="viewerCount" style="margin:0;color:#9fb3c8;"></p>
+          <h2 id="viewerTitle">CardNews Preview</h2>
+          <p id="viewerCount"></p>
         </div>
-        <button type="button" class="secondary" onclick="closeViewer()">Close</button>
+        <button type="button" class="button-secondary" onclick="closeViewer()">Close</button>
       </div>
       <div class="viewer-stage">
         <div class="viewer-main">
@@ -550,6 +1639,7 @@
       </div>
     </div>
   </div>
+
   <script>
     let viewerSlides = [];
     let viewerIndex = 0;
@@ -558,6 +1648,7 @@
       const viewerImage = document.getElementById("viewerImage");
       const viewerCount = document.getElementById("viewerCount");
       const viewerSidebar = document.getElementById("viewerSidebar");
+
       viewerImage.src = viewerSlides[viewerIndex] || "";
       viewerCount.textContent = viewerSlides.length ? `Slide ${viewerIndex + 1} / ${viewerSlides.length}` : "";
       viewerSidebar.innerHTML = "";

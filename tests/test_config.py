@@ -20,11 +20,19 @@ class PostBridgeConfigTests(unittest.TestCase):
         with open(os.path.join(directory, "config.json"), "w", encoding="utf-8") as handle:
             json.dump(payload, handle)
 
+    def patch_config_paths(self, directory: str):
+        return patch.multiple(
+            config,
+            ROOT_DIR=directory,
+            CONFIG_PATH=os.path.join(directory, "config.json"),
+            CONFIG_EXAMPLE_PATH=os.path.join(directory, "config.example.json"),
+        )
+
     def test_missing_platforms_uses_defaults(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             self.write_config(temp_dir, {"post_bridge": {"enabled": True}})
 
-            with patch.object(config, "ROOT_DIR", temp_dir):
+            with self.patch_config_paths(temp_dir):
                 post_bridge_config = config.get_post_bridge_config()
 
         self.assertEqual(post_bridge_config["platforms"], ["tiktok", "instagram"])
@@ -41,7 +49,7 @@ class PostBridgeConfigTests(unittest.TestCase):
                 },
             )
 
-            with patch.object(config, "ROOT_DIR", temp_dir):
+            with self.patch_config_paths(temp_dir):
                 post_bridge_config = config.get_post_bridge_config()
 
         self.assertEqual(post_bridge_config["platforms"], [])
@@ -58,7 +66,7 @@ class PostBridgeConfigTests(unittest.TestCase):
                 },
             )
 
-            with patch.object(config, "ROOT_DIR", temp_dir):
+            with self.patch_config_paths(temp_dir):
                 post_bridge_config = config.get_post_bridge_config()
 
         self.assertEqual(post_bridge_config["platforms"], [])
@@ -72,7 +80,7 @@ class PostBridgeConfigTests(unittest.TestCase):
                 },
             )
 
-            with patch.object(config, "ROOT_DIR", temp_dir):
+            with self.patch_config_paths(temp_dir):
                 post_bridge_config = config.get_post_bridge_config()
 
         self.assertEqual(post_bridge_config["platforms"], ["tiktok", "instagram"])
@@ -94,12 +102,30 @@ class PostBridgeConfigTests(unittest.TestCase):
                 },
             )
 
-            with patch.object(config, "ROOT_DIR", temp_dir):
+            with self.patch_config_paths(temp_dir):
                 image_config = config.get_image_generation_config()
 
         self.assertEqual(image_config["provider"], "gemini")
         self.assertEqual(image_config["comfyui"]["steps"], 8)
         self.assertEqual(image_config["comfyui"]["cfg"], 4.0)
+
+    def test_cardnews_background_defaults_and_invalid_values(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            self.write_config(
+                temp_dir,
+                {
+                    "cardnews": {
+                        "background_strategy": "something-weird",
+                        "background_style": "broken-style",
+                    }
+                },
+            )
+
+            with self.patch_config_paths(temp_dir):
+                cardnews_config = config.get_cardnews_config()
+
+        self.assertEqual(cardnews_config["background_strategy"], "deck_pair")
+        self.assertEqual(cardnews_config["background_style"], "editorial_abstract")
 
 
 if __name__ == "__main__":

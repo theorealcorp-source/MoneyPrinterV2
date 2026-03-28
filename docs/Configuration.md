@@ -68,6 +68,8 @@ All your configurations will be in a file in the root directory, called `config.
     - `slides_per_post`: `number` - How many slides are generated for each card-news draft.
     - `review_required`: `boolean` - If `true`, drafts must be approved before publishing.
     - `default_channels`: `string[]` - Default publish channels for card-news drafts. MVP supports `instagram` and `tiktok`.
+    - `background_strategy`: `string` - Background generation strategy. Options: `deck_pair`, `shared_single`, `per_slide`.
+    - `background_style`: `string` - Shared prompt style for local background generation. Options: `editorial_abstract`, `paper_layers`, `minimal_gradient`.
     - `render_width`: `number` - Output width in pixels for rendered slides.
     - `render_height`: `number` - Output height in pixels for rendered slides.
 - `dashboard`: `object`:
@@ -77,8 +79,20 @@ All your configurations will be in a file in the root directory, called `config.
 ### Local ComfyUI Notes
 
 - Start the ComfyUI API server before generating assets.
+- This repo includes a helper script at `scripts/start_comfyui_local.sh`.
+- Default local install path used on this machine is `/Users/theo/iCloud Drive (Archive)/Documents/ComfyUI/app`.
+- Example:
+
+```bash
+bash scripts/start_comfyui_local.sh
+```
+
 - For quick setup, leave `workflow_path` blank and set `checkpoint` to a valid one-file checkpoint in your ComfyUI `models/checkpoints` directory.
+- Recommended local presets in this repo:
+  - `flux1-schnell-fp8.safetensors` with `steps=4`, `cfg=1.0`, `scheduler=simple`, paired with `cardnews.background_strategy=shared_single`
+  - `sd_xl_base_1.0_0.9vae.safetensors` with `steps=10`, `cfg=4.5`, `scheduler=normal`, paired with `cardnews.background_strategy=deck_pair`
 - For FLUX or other custom graphs, export a workflow in ComfyUI's API format and point `workflow_path` at that JSON file.
+- The built-in fallback workflow was verified locally with `sd_xl_base_1.0_0.9vae.safetensors` on `http://127.0.0.1:8188`.
 
 ## Example
 
@@ -150,6 +164,8 @@ All your configurations will be in a file in the root directory, called `config.
     "slides_per_post": 6,
     "review_required": true,
     "default_channels": ["instagram"],
+    "background_strategy": "deck_pair",
+    "background_style": "editorial_abstract",
     "render_width": 1080,
     "render_height": 1350
   },
